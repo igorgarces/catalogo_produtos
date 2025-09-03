@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -6,11 +7,47 @@ import 'models/product.dart';
 import 'repositories/products_repository.dart';
 
 void main() {
-  runApp(const CatalogApp());
+  runApp(const MyApp());
+}
+
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void _toggleTheme(bool isDark) {
+    setState(() {
+      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Catálogo de Produtos',
+      themeMode: _themeMode,
+      theme: ThemeData.light(useMaterial3: true),
+      darkTheme: ThemeData.dark(useMaterial3: true),
+      home: CatalogApp(onThemeChanged: _toggleTheme, themeMode: _themeMode),
+    );
+  }
 }
 
 class CatalogApp extends StatefulWidget {
-  const CatalogApp({super.key});
+  final void Function(bool) onThemeChanged;
+  final ThemeMode themeMode;
+
+  const CatalogApp({
+    super.key,
+    required this.onThemeChanged,
+    required this.themeMode,
+  });
 
   @override
   State<CatalogApp> createState() => _CatalogAppState();
@@ -29,7 +66,8 @@ class _CatalogAppState extends State<CatalogApp> {
         TextEditingController(text: product?.price.toString());
     final descriptionController =
         TextEditingController(text: product?.description);
-    String category = product?.category ?? 'Roupas';
+
+    String? category = product?.category ?? 'Roupas';
     String? imagePath = product?.imagePath;
 
     Future<void> pickImage() async {
@@ -44,8 +82,8 @@ class _CatalogAppState extends State<CatalogApp> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => Padding(
-        padding: MediaQuery.of(context).viewInsets,
+      builder: (ctx) => Padding(
+        padding: MediaQuery.of(ctx).viewInsets,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -56,9 +94,13 @@ class _CatalogAppState extends State<CatalogApp> {
                 child: CircleAvatar(
                   radius: 50,
                   backgroundImage: imagePath != null
-                      ? FileImage(File(imagePath!))
-                      : const AssetImage("assets/placeholder.png")
-                          as ImageProvider,
+                      ? (kIsWeb
+                          ? NetworkImage(imagePath!)
+                          : FileImage(File(imagePath!))) as ImageProvider
+                      : const AssetImage("assets/placeholder.png"),
+                  child: imagePath == null
+                      ? const Icon(Icons.image, size: 40)
+                      : null,
                 ),
               ),
               const SizedBox(height: 16),
@@ -80,7 +122,7 @@ class _CatalogAppState extends State<CatalogApp> {
                 items: ['Roupas', 'Eletrônicos', 'Livros']
                     .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                     .toList(),
-                onChanged: (value) => category = value!,
+                onChanged: (value) => category = value,
                 decoration: const InputDecoration(labelText: 'Categoria'),
               ),
               const SizedBox(height: 20),
@@ -91,7 +133,7 @@ class _CatalogAppState extends State<CatalogApp> {
                     name: nameController.text,
                     price: double.tryParse(priceController.text) ?? 0,
                     description: descriptionController.text,
-                    category: category,
+                    category: category ?? 'Roupas',
                     imagePath: imagePath,
                   );
 
@@ -103,7 +145,7 @@ class _CatalogAppState extends State<CatalogApp> {
                     }
                   });
 
-                  Navigator.pop(context);
+                  Navigator.pop(ctx);
                 },
               )
             ],
@@ -124,84 +166,89 @@ class _CatalogAppState extends State<CatalogApp> {
       return matchesCategory && matchesSearch;
     }).toList();
 
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
-      theme: ThemeData.light(useMaterial3: true),
-      darkTheme: ThemeData.dark(useMaterial3: true),
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Catálogo de Produtos'),
-          actions: [
-            DropdownButton<String>(
-              value: _selectedCategory,
-              hint: const Text('Categoria'),
-              items: ['Roupas', 'Eletrônicos', 'Livros']
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: (value) => setState(() => _selectedCategory = value),
-            ),
-            IconButton(
-              icon: const Icon(Icons.clear),
-              onPressed: () => setState(() {
-                _selectedCategory = null;
-                _searchQuery = "";
-              }),
-            )
-          ],
-        ),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Buscar produto...',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (value) =>
-                    setState(() => _searchQuery = value.toLowerCase()),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Catálogo de Produtos'),
+        actions: [
+          DropdownButton<String>(
+            value: _selectedCategory,
+            hint: const Text('Categoria'),
+            items: ['Roupas', 'Eletrônicos', 'Livros']
+                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                .toList(),
+            onChanged: (value) => setState(() => _selectedCategory = value),
+          ),
+          IconButton(
+            icon: const Icon(Icons.clear),
+            onPressed: () => setState(() {
+              _selectedCategory = null;
+              _searchQuery = "";
+            }),
+          ),
+          Switch(
+            value: widget.themeMode == ThemeMode.dark,
+            onChanged: widget.onThemeChanged,
+            activeColor: Colors.yellow,
+            inactiveThumbColor: Colors.grey,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: TextField(
+              decoration: const InputDecoration(
+                hintText: 'Buscar produto...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
               ),
+              onChanged: (value) =>
+                  setState(() => _searchQuery = value.toLowerCase()),
             ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: filtered.length,
-                itemBuilder: (_, index) {
-                  final product = filtered[index];
-                  return Card(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundImage: product.imagePath != null
-                            ? FileImage(File(product.imagePath!))
-                            : const AssetImage("assets/placeholder.png")
-                                as ImageProvider,
-                      ),
-                      title: Text(product.name),
-                      subtitle: Text(
-                          '${product.category} • R\$ ${product.price.toStringAsFixed(2)}'),
-                      onTap: () =>
-                          _openProductForm(product: product, index: index),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => setState(() {
-                          _repository.delete(
-                              _repository.getAll().indexOf(product));
-                        }),
-                      ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: filtered.length,
+              itemBuilder: (_, index) {
+                final product = filtered[index];
+                return Card(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundImage: product.imagePath != null
+                          ? (kIsWeb
+                              ? NetworkImage(product.imagePath!)
+                              : FileImage(File(product.imagePath!)))
+                          as ImageProvider
+                          : const AssetImage("assets/placeholder.png"),
+                      child: product.imagePath == null
+                          ? const Icon(Icons.image, size: 20)
+                          : null,
                     ),
-                  );
-                },
-              ),
+                    title: Text(product.name),
+                    subtitle: Text(
+                        '${product.category} • R\$ ${product.price.toStringAsFixed(2)}'),
+                    onTap: () =>
+                        _openProductForm(product: product, index: index),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => setState(() {
+                        _repository.delete(
+                            _repository.getAll().indexOf(product));
+                      }),
+                    ),
+                  ),
+                );
+              },
             ),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => _openProductForm(),
-          child: const Icon(Icons.add),
-        ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openProductForm(),
+        child: const Icon(Icons.add),
       ),
     );
   }
