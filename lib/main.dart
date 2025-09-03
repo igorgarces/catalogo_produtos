@@ -57,6 +57,7 @@ class _CatalogAppState extends State<CatalogApp> {
   final ProductsRepository _repository = ProductsRepository();
   String? _selectedCategory;
   String _searchQuery = "";
+  final List<Product> _cart = []; // Carrinho de compras
 
   final ImagePicker _picker = ImagePicker();
 
@@ -126,30 +127,86 @@ class _CatalogAppState extends State<CatalogApp> {
                 decoration: const InputDecoration(labelText: 'Categoria'),
               ),
               const SizedBox(height: 20),
-              ElevatedButton(
-                child: Text(product == null ? 'Adicionar' : 'Salvar'),
-                onPressed: () {
-                  final newProduct = Product(
-                    name: nameController.text,
-                    price: double.tryParse(priceController.text) ?? 0,
-                    description: descriptionController.text,
-                    category: category ?? 'Roupas',
-                    imagePath: imagePath,
-                  );
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    child: Text(product == null ? 'Adicionar' : 'Salvar'),
+                    onPressed: () {
+                      final newProduct = Product(
+                        name: nameController.text,
+                        price: double.tryParse(priceController.text) ?? 0,
+                        description: descriptionController.text,
+                        category: category ?? 'Roupas',
+                        imagePath: imagePath,
+                      );
 
-                  setState(() {
-                    if (index != null) {
-                      _repository.updated(index, newProduct);
-                    } else {
-                      _repository.add(newProduct);
-                    }
-                  });
+                      setState(() {
+                        if (index != null) {
+                          _repository.updated(index, newProduct);
+                        } else {
+                          _repository.add(newProduct);
+                        }
+                      });
 
-                  Navigator.pop(ctx);
-                },
-              )
+                      Navigator.pop(ctx);
+                    },
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey,
+                    ),
+                    child: const Text('Cancelar'),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _addToCart(Product product) {
+    setState(() {
+      _cart.add(product);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Produto adicionado ao carrinho')),
+    );
+  }
+
+  void _openCart() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Carrinho de Compras',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            ..._cart.map(
+              (p) => ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: p.imagePath != null
+                      ? (kIsWeb
+                          ? NetworkImage(p.imagePath!)
+                          : FileImage(File(p.imagePath!))) as ImageProvider
+                      : const AssetImage("assets/placeholder.png"),
+                ),
+                title: Text(p.name),
+                subtitle: Text('R\$ ${p.price.toStringAsFixed(2)}'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Fechar'),
+            ),
+          ],
         ),
       ),
     );
@@ -184,6 +241,10 @@ class _CatalogAppState extends State<CatalogApp> {
               _selectedCategory = null;
               _searchQuery = "";
             }),
+          ),
+          IconButton(
+            icon: const Icon(Icons.shopping_cart),
+            onPressed: _openCart,
           ),
           Switch(
             value: widget.themeMode == ThemeMode.dark,
@@ -232,12 +293,22 @@ class _CatalogAppState extends State<CatalogApp> {
                         '${product.category} • R\$ ${product.price.toStringAsFixed(2)}'),
                     onTap: () =>
                         _openProductForm(product: product, index: index),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => setState(() {
-                        _repository.delete(
-                            _repository.getAll().indexOf(product));
-                      }),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.add_shopping_cart,
+                              color: Colors.green),
+                          onPressed: () => _addToCart(product),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => setState(() {
+                            _repository
+                                .delete(_repository.getAll().indexOf(product));
+                          }),
+                        ),
+                      ],
                     ),
                   ),
                 );
