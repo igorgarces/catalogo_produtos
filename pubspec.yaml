@@ -15,6 +15,7 @@ dependencies:
   google_fonts: ^6.2.1
   provider: ^6.1.2
   image_picker: ^1.1.2
+  shared_preferences: ^2.1.1
   permission_handler: ^11.3.1
 
 dev_dependencies:
@@ -25,6 +26,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # 🔽 Ativando assets
   assets:
     - assets/placeholder.png
+    - assets/notebook.jpg
+    - assets/camiseta.jpg
+    - assets/livro.jpg
