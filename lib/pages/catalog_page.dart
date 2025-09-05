@@ -106,8 +106,8 @@ class _CatalogPageState extends State<CatalogPage> {
                   product: product,
                   onEdit: () => _addOrEditProduct(product: product, index: index),
                   onAddToCart: () => _addToCart(product),
-                  onRemove: () => _removeProduct(product), // Adiciona botão remover
-                  formatPrice: _formatCurrency, // Passa função de formatação
+                  onRemove: () => _removeProduct(product), 
+                  formatPrice: _formatCurrency, 
                 );
               },
             ),
