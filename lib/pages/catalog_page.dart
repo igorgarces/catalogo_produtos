@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
 import '../models/product.dart';
 import '../widgets/cart_widget.dart';
 import '../widgets/product_tile.dart';
@@ -18,17 +16,12 @@ class CatalogPage extends StatefulWidget {
 
 class _CatalogPageState extends State<CatalogPage> {
   List<Product> products = [
-    Product(name: 'Camiseta', price: 29.9, description: 'Camiseta confortável', category: 'Roupas'),
-    Product(name: 'Fone de Ouvido', price: 199.9, description: 'Fone bluetooth', category: 'Eletrônicos'),
-    Product(name: 'As Crônicas de Galliot', price: 48.99, description: 'Meu livro autoral de fantasia', category: 'Livros')
+    Product(name: 'Camiseta', price: 29.90, description: 'Camiseta confortável', category: 'Roupas'),
+    Product(name: 'Fone de Ouvido', price: 199.90, description: 'Fone bluetooth', category: 'Eletrônicos'),
+    Product(name: 'Livro Fantasia', price: 48.99, description: 'Livro autoral', category: 'Livros'),
   ];
 
   List<Product> cart = [];
-
-  String _formatCurrency(double value) {
-    final formatter = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    return formatter.format(value);
-  }
 
   void _addOrEditProduct({Product? product, int? index}) async {
     await Navigator.push(
@@ -58,14 +51,20 @@ class _CatalogPageState extends State<CatalogPage> {
     setState(() => cart.remove(product));
   }
 
-  void _removeProduct(Product product) {
+  void _removeFromProducts(Product product) {
     setState(() => products.remove(product));
   }
 
   void _showCartDialog() {
     showDialog(
       context: context,
-      builder: (_) => CartWidget(cart: cart, onRemove: _removeFromCart),
+      builder: (_) => CartWidget(
+        cart: cart,
+        onRemove: (p) {
+          _removeFromCart(p);
+          setState(() {}); // Atualiza imediatamente
+        },
+      ),
     );
   }
 
@@ -106,8 +105,7 @@ class _CatalogPageState extends State<CatalogPage> {
                   product: product,
                   onEdit: () => _addOrEditProduct(product: product, index: index),
                   onAddToCart: () => _addToCart(product),
-                  onRemove: () => _removeProduct(product), 
-                  formatPrice: _formatCurrency, 
+                  onRemove: () => _removeFromProducts(product),
                 );
               },
             ),

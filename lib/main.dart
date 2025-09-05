@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'pages/catalog_page.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+void main() => runApp(const CatalogApp());
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+class CatalogApp extends StatefulWidget {
+  const CatalogApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<CatalogApp> createState() => _CatalogAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _CatalogAppState extends State<CatalogApp> {
   bool isDarkMode = false;
 
   void _toggleTheme() => setState(() => isDarkMode = !isDarkMode);
@@ -21,7 +19,10 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: isDarkMode ? ThemeData.dark() : ThemeData.light(),
+      title: 'Catálogo de Produtos',
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: CatalogPage(
         isDarkMode: isDarkMode,
         onThemeChanged: _toggleTheme,
