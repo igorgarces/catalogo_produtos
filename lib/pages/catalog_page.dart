@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../models/product.dart';
 import '../widgets/cart_widget.dart';
@@ -19,10 +20,15 @@ class _CatalogPageState extends State<CatalogPage> {
   List<Product> products = [
     Product(name: 'Camiseta', price: 29.9, description: 'Camiseta confortável', category: 'Roupas'),
     Product(name: 'Fone de Ouvido', price: 199.9, description: 'Fone bluetooth', category: 'Eletrônicos'),
-    Product(name: 'As cronicas de Galliot', price: 48.99, description: 'Meu livro autoral de fantasia', category: 'Livros')
+    Product(name: 'As Crônicas de Galliot', price: 48.99, description: 'Meu livro autoral de fantasia', category: 'Livros')
   ];
 
   List<Product> cart = [];
+
+  String _formatCurrency(double value) {
+    final formatter = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+    return formatter.format(value);
+  }
 
   void _addOrEditProduct({Product? product, int? index}) async {
     await Navigator.push(
@@ -50,6 +56,10 @@ class _CatalogPageState extends State<CatalogPage> {
 
   void _removeFromCart(Product product) {
     setState(() => cart.remove(product));
+  }
+
+  void _removeProduct(Product product) {
+    setState(() => products.remove(product));
   }
 
   void _showCartDialog() {
@@ -96,6 +106,8 @@ class _CatalogPageState extends State<CatalogPage> {
                   product: product,
                   onEdit: () => _addOrEditProduct(product: product, index: index),
                   onAddToCart: () => _addToCart(product),
+                  onRemove: () => _removeProduct(product), // Adiciona botão remover
+                  formatPrice: _formatCurrency, // Passa função de formatação
                 );
               },
             ),
