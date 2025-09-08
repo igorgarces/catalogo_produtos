@@ -1,16 +1,14 @@
 import 'dart:io';
-
+import 'package:catalogo_produtos/repositories/products_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../models/product.dart';
-
 class ProductFormPage extends StatefulWidget {
-  final Product? product;
-  final Function(Product) onSave;
+  final Product? existingProduct;
+  final Uint8List? existingWebImage;
 
-  const ProductFormPage({super.key, this.product, required this.onSave});
+  const ProductFormPage({super.key, this.existingProduct, this.existingWebImage});
 
   @override
   State<ProductFormPage> createState() => _ProductFormPageState();
@@ -18,108 +16,133 @@ class ProductFormPage extends StatefulWidget {
 
 class _ProductFormPageState extends State<ProductFormPage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _categoryController = TextEditingController();
-
-  File? _imageFile; // Mobile
-  Uint8List? _webImage; // Web
+  late String _name;
+  late String _description;
+  late double _price;
+  String? _imageUrl;
+  Uint8List? _webImageBytes;
+  XFile? _pickedFile;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    if (widget.product != null) {
-      _nameController.text = widget.product!.name;
-      _priceController.text = widget.product!.price.toString();
-      _descriptionController.text = widget.product!.description;
-      _categoryController.text = widget.product!.category;
-
-      _imageFile = widget.product!.imagePath != null ? File(widget.product!.imagePath!) : null;
-      _webImage = widget.product!.imageBytes;
+    final prod = widget.existingProduct;
+    if (prod != null) {
+      _name = prod.name;
+      _description = prod.description;
+      _price = prod.price;
+      _imageUrl = prod.imageUrl;
+      _webImageBytes = widget.existingWebImage;
+    } else {
+      _name = '';
+      _description = '';
+      _price = 0;
+      _imageUrl = null;
+      _webImageBytes = null;
     }
   }
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-
-    if (kIsWeb) {
-      final bytes = await picked.readAsBytes();
-      setState(() => _webImage = bytes);
-    } else {
-      setState(() => _imageFile = File(picked.path));
+    final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      if (kIsWeb) {
+        final bytes = await picked.readAsBytes();
+        setState(() {
+          _webImageBytes = bytes;
+          _pickedFile = picked;
+          _imageUrl = null;
+        });
+      } else {
+        setState(() {
+          _pickedFile = picked;
+          _imageUrl = picked.path;
+          _webImageBytes = null;
+        });
+      }
     }
   }
 
   void _saveProduct() {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState?.validate() ?? false) {
+      _formKey.currentState?.save();
       final product = Product(
-        name: _nameController.text,
-        price: double.tryParse(_priceController.text) ?? 0,
-        description: _descriptionController.text,
-        category: _categoryController.text,
-        imagePath: kIsWeb ? null : _imageFile?.path,
-        imageBytes: kIsWeb ? _webImage : null,
+        name: _name,
+        description: _description,
+        price: _price,
+        imageUrl: _imageUrl ?? (_pickedFile != null ? _pickedFile!.path : ''),
       );
+      Navigator.pop(context, {'product': product, 'bytes': _webImageBytes});
+    }
+  }
 
-      widget.onSave(product);
-      Navigator.pop(context);
+  Widget _buildImagePreview() {
+    if (kIsWeb && _webImageBytes != null) {
+      return Image.memory(_webImageBytes!, width: 100, height: 100, fit: BoxFit.cover);
+    } else if (!kIsWeb && _imageUrl != null && _imageUrl!.isNotEmpty) {
+      return Image.file(File(_imageUrl!), width: 100, height: 100, fit: BoxFit.cover);
+    } else {
+      return Container(
+        width: 100,
+        height: 100,
+        color: Colors.grey.shade800,
+        child: const Icon(Icons.image_not_supported, color: Colors.white),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.product == null ? 'Novo Produto' : 'Editar Produto')),
+      appBar: AppBar(title: Text(widget.existingProduct != null ? "Editar Produto" : "Adicionar Produto")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Nome'),
-                validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
+              GestureDetector(
+                onTap: _pickImage,
+                child: Center(child: _buildImagePreview()),
               ),
+              const SizedBox(height: 16),
               TextFormField(
-                controller: _priceController,
+                initialValue: _name,
+                decoration: const InputDecoration(labelText: 'Nome do Produto'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Digite o nome';
+                  }
+                  return null;
+                },
+                onSaved: (value) { _name = value ?? ''; },
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                initialValue: _description,
+                decoration: const InputDecoration(labelText: 'Descrição'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Digite a descrição';
+                  }
+                  return null;
+                },
+                onSaved: (value) { _description = value ?? ''; },
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                initialValue: _price != 0 ? _price.toStringAsFixed(2) : '',
                 decoration: const InputDecoration(labelText: 'Preço'),
                 keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? 'Informe o preço' : null,
-              ),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Descrição'),
-              ),
-              TextFormField(
-                controller: _categoryController,
-                decoration: const InputDecoration(labelText: 'Categoria'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Digite o preço';
+                  if (double.tryParse(value.replaceAll(',', '.')) == null) return 'Preço inválido';
+                  return null;
+                },
+                onSaved: (value) { _price = double.parse(value!.replaceAll(',', '.')); },
               ),
               const SizedBox(height: 16),
-              Center(
-                child: Column(
-                  children: [
-                    if (_imageFile != null)
-                      Image.file(_imageFile!, height: 100)
-                    else if (_webImage != null)
-                      Image.memory(_webImage!, height: 100)
-                    else
-                      const Icon(Icons.image, size: 100, color: Colors.grey),
-                    ElevatedButton(
-                      onPressed: _pickImage,
-                      child: const Text('Selecionar Imagem'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _saveProduct,
-                child: const Text('Salvar'),
-              ),
+              ElevatedButton(onPressed: _saveProduct, child: const Text('Salvar Produto')),
             ],
           ),
         ),

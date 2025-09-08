@@ -1,32 +1,35 @@
 import 'package:flutter/material.dart';
-import 'pages/catalog_page.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:catalogo_produtos/pages/catalog_page.dart';
 
-void main() => runApp(const CatalogApp());
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
 
-class CatalogApp extends StatefulWidget {
-  const CatalogApp({super.key});
-
-  @override
-  State<CatalogApp> createState() => _CatalogAppState();
+void main() {
+  runApp(const MyApp());
 }
 
-class _CatalogAppState extends State<CatalogApp> {
-  bool isDarkMode = false;
-
-  void _toggleTheme() => setState(() => isDarkMode = !isDarkMode);
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Catálogo de Produtos',
-      theme: ThemeData.light(),
-      darkTheme: ThemeData.dark(),
-      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: CatalogPage(
-        isDarkMode: isDarkMode,
-        onThemeChanged: _toggleTheme,
-      ),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (_, ThemeMode currentMode, __) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData.light(useMaterial3: true),
+          darkTheme: ThemeData.dark(useMaterial3: true),
+          themeMode: currentMode,
+          home: const CatalogPage(),
+          supportedLocales: const [Locale('pt', 'BR')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+        );
+      },
     );
   }
 }

@@ -1,69 +1,136 @@
+import 'package:catalogo_produtos/pages/product_form_page.dart';
+import 'package:catalogo_produtos/repositories/products_repository.dart';
+import 'package:catalogo_produtos/widgets/product_tile.dart';
+import 'package:catalogo_produtos/widgets/cart_widget.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../models/product.dart';
-import '../widgets/cart_widget.dart';
-import '../widgets/product_tile.dart';
-import 'product_form_page.dart';
+import 'package:catalogo_produtos/main.dart';
+
+class CartItem {
+  final Product product;
+  int quantity;
+  CartItem({required this.product, this.quantity = 1});
+}
 
 class CatalogPage extends StatefulWidget {
-  final bool isDarkMode;
-  final VoidCallback onThemeChanged;
-
-  const CatalogPage({super.key, required this.isDarkMode, required this.onThemeChanged});
+  const CatalogPage({super.key});
 
   @override
   State<CatalogPage> createState() => _CatalogPageState();
 }
 
 class _CatalogPageState extends State<CatalogPage> {
-  List<Product> products = [
-    Product(name: 'Camiseta', price: 29.90, description: 'Camiseta confortável', category: 'Roupas'),
-    Product(name: 'Fone de Ouvido', price: 199.90, description: 'Fone bluetooth', category: 'Eletrônicos'),
-    Product(name: 'Livro Fantasia', price: 48.99, description: 'Livro autoral', category: 'Livros'),
-  ];
+  final ScrollController _scrollController = ScrollController();
+  final ProductsRepository _repository = ProductsRepository();
+  final List<Product> _products = [];
+  final Map<Product, Uint8List?> _webImages = {};
+  final List<CartItem> _cart = [];
+  bool _isLoading = false;
+  bool _hasMore = true;
 
-  List<Product> cart = [];
+  @override
+  void initState() {
+    super.initState();
+    _loadMore();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 &&
+          !_isLoading &&
+          _hasMore) {
+        _loadMore();
+      }
+    });
+  }
 
-  void _addOrEditProduct({Product? product, int? index}) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ProductFormPage(
-          product: product,
-          onSave: (p) {
-            setState(() {
-              if (index == null) {
-                products.add(p);
-              } else {
-                products[index] = p;
-              }
-            });
-          },
-        ),
-      ),
-    );
+  Future<void> _loadMore() async {
+    setState(() { _isLoading = true; });
+    final newItems = await _repository.fetchProducts();
+    setState(() {
+      if (newItems.isEmpty) {
+        _hasMore = false;
+      } else {
+        _products.addAll(newItems);
+      }
+      _isLoading = false;
+    });
+  }
+
+  void _addOrEditProduct(Product product, {Uint8List? bytes, Product? existing}) {
+    setState(() {
+      if (existing != null) {
+        final index = _products.indexOf(existing);
+        _products[index] = product;
+        _webImages[product] = bytes;
+        _webImages.remove(existing);
+      } else {
+        _products.insert(0, product);
+        if (bytes != null) _webImages[product] = bytes;
+      }
+    });
   }
 
   void _addToCart(Product product) {
-    setState(() => cart.add(product));
+    final index = _cart.indexWhere((item) => item.product == product);
+    setState(() {
+      if (index >= 0) {
+        _cart[index].quantity++;
+      } else {
+        _cart.add(CartItem(product: product));
+      }
+    });
   }
 
   void _removeFromCart(Product product) {
-    setState(() => cart.remove(product));
+    final index = _cart.indexWhere((item) => item.product == product);
+    setState(() {
+      if (index >= 0) {
+        if (_cart[index].quantity > 1) {
+          _cart[index].quantity--;
+        } else {
+          _cart.removeAt(index);
+        }
+      }
+    });
   }
 
-  void _removeFromProducts(Product product) {
-    setState(() => products.remove(product));
-  }
+  double get _cartTotal => _cart.fold(0, (prev, item) => prev + item.product.price * item.quantity);
 
-  void _showCartDialog() {
-    showDialog(
+  void _openCart() {
+    showModalBottomSheet(
       context: context,
-      builder: (_) => CartWidget(
-        cart: cart,
-        onRemove: (p) {
-          _removeFromCart(p);
-          setState(() {}); // Atualiza imediatamente
-        },
+      builder: (_) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          color: Theme.of(context).colorScheme.background,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ..._cart.map((item) => ListTile(
+                title: Text(item.product.name, style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+                subtitle: Text(
+                  'Qtd: ${item.quantity} - R\$ ${(item.product.price * item.quantity).toStringAsFixed(2)}',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6)),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.remove, color: Colors.red),
+                  onPressed: () {
+                    setModalState(() { _removeFromCart(item.product); });
+                  },
+                ),
+              )),
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  'Total: R\$ ${_cartTotal.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onBackground,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -71,48 +138,66 @@ class _CatalogPageState extends State<CatalogPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
-        title: const Text('Catálogo'),
+        title: const Text("Catálogo"),
+        backgroundColor: Theme.of(context).colorScheme.background,
         actions: [
           IconButton(
-            icon: Icon(widget.isDarkMode ? Icons.light_mode : Icons.dark_mode),
-            onPressed: widget.onThemeChanged,
+            icon: Icon(themeNotifier.value == ThemeMode.dark ? Icons.wb_sunny : Icons.nightlight_round),
+            onPressed: () { themeNotifier.value = themeNotifier.value == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark; },
           ),
-          Stack(
-            children: [
-              IconButton(icon: const Icon(Icons.shopping_cart), onPressed: _showCartDialog),
-              if (cart.isNotEmpty)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                    child: Text(cart.length.toString(), style: const TextStyle(fontSize: 12)),
-                  ),
-                ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.add_box_outlined),
+            onPressed: () async {
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductFormPage()));
+              if (result != null && result is Map<String, dynamic>) {
+                _addOrEditProduct(result['product'], bytes: result['bytes']);
+              }
+            },
           ),
+          IconButton(icon: const Icon(Icons.shopping_cart_outlined), onPressed: _openCart),
+          const SizedBox(width: 12),
         ],
       ),
-      body: products.isEmpty
-          ? const Center(child: Text('Nenhum produto disponível.'))
-          : ListView.builder(
-              itemCount: products.length,
-              itemBuilder: (_, index) {
-                final product = products[index];
-                return ProductTile(
-                  product: product,
-                  onEdit: () => _addOrEditProduct(product: product, index: index),
-                  onAddToCart: () => _addToCart(product),
-                  onRemove: () => _removeFromProducts(product),
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _addOrEditProduct(),
-        child: const Icon(Icons.add),
+      body: ListView.builder(
+        controller: _scrollController,
+        itemCount: _products.length + 1,
+        itemBuilder: (context, index) {
+          if (index == _products.length) {
+            return _isLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : const SizedBox.shrink();
+          }
+          final product = _products[index];
+          return ProductTile(
+            product: product,
+            webImageBytes: _webImages[product],
+            onEdit: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProductFormPage(existingProduct: product, existingWebImage: _webImages[product]),
+                ),
+              );
+              if (result != null && result is Map<String, dynamic>) {
+                _addOrEditProduct(result['product'], bytes: result['bytes'], existing: product);
+              }
+            },
+            onAddToCart: () { _addToCart(product); },
+          );
+        },
       ),
+      floatingActionButton: CartWidget(onTap: _openCart),
     );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 }

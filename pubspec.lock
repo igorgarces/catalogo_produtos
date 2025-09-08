@@ -245,8 +245,40 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.2"
-  intl:
+  img_picker:
+    dependency: "direct main"
+    description:
+      name: img_picker
+      sha256: "289796ebc667d1031e944c82709f5c67f06a9698ba4538baf5e002f10e562c7c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
+  img_picker_android:
     dependency: transitive
+    description:
+      name: img_picker_android
+      sha256: "930be3e686b164676383d8775f818affa883f88191c42af983b1a781996a3589"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.4"
+  img_picker_ios:
+    dependency: transitive
+    description:
+      name: img_picker_ios
+      sha256: bde838d7a9fcafcdde6183c701a31d6b846b7b761714ed3438b3f25ac406ac55
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
+  img_picker_platform_interface:
+    dependency: transitive
+    description:
+      name: img_picker_platform_interface
+      sha256: b33367f332f1ad9f7174a4e02b8932376c15a79d5d3aef34cca139832558e2bd
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.0"
+  intl:
+    dependency: "direct main"
     description:
       name: intl
       sha256: "3df61194eb431efc39c4ceba583b95633a403f46c9fd341e550ce0bfa50e9aa5"
