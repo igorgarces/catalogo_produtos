@@ -1,5 +1,7 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../repositories/products_repository.dart';
+import '../models/product.dart';
 
 class ProductDetailPage extends StatelessWidget {
   final Product product;
@@ -7,32 +9,35 @@ class ProductDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle = Theme.of(context).textTheme.titleLarge;
+    Widget imageWidget;
+    if (product.imageBytes != null) {
+      imageWidget = Image.memory(product.imageBytes!, width: double.infinity, height: 250, fit: BoxFit.cover);
+    } else if (product.imagePath != null && product.imagePath!.isNotEmpty) {
+      imageWidget = kIsWeb
+          ? const Icon(Icons.image, size: 200)
+          : Image.file(File(product.imagePath!), width: double.infinity, height: 250, fit: BoxFit.cover);
+    } else {
+      imageWidget = Container(width: double.infinity, height: 250, color: Colors.grey, child: const Icon(Icons.image, size: 50));
+    }
+
     return Scaffold(
       appBar: AppBar(title: Text(product.name)),
-      body: SingleChildScrollView(
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (product.imageBytes != null)
-              Image.memory(product.imageBytes!, height: 250, fit: BoxFit.cover)
-            else if (product.imageUrl != null && product.imageUrl!.isNotEmpty)
-              Image.network(product.imageUrl!, height: 250, fit: BoxFit.cover)
-            else
-              Container(height: 250, color: Colors.grey[300], child: const Center(child: Text("Sem imagem"))),
-            const SizedBox(height: 16),
-            Text(product.name, style: titleStyle),
-            const SizedBox(height: 8),
-            Text("Preço: R\$${product.price.toStringAsFixed(2)}"),
-            const SizedBox(height: 8),
-            Text("Estoque: ${product.stock} unidades"),
-            const SizedBox(height: 8),
-            Text("Categoria: ${product.category}"),
-            const SizedBox(height: 8),
-            Text(product.description),
-          ],
-        ),
+        children: [
+          imageWidget,
+          const SizedBox(height: 12),
+          Text(product.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('R\$ ${product.price.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, color: Colors.green)),
+          const SizedBox(height: 8),
+          Text('Estoque: ${product.stock}', style: TextStyle(color: product.stock > 0 ? Colors.green : Colors.red)),
+          const SizedBox(height: 12),
+          Text(product.description, style: const TextStyle(fontSize: 16)),
+          const SizedBox(height: 12),
+          if (product.isFeatured)
+            Container(padding: const EdgeInsets.all(8), color: Colors.orange, child: const Text('Produto em destaque', style: TextStyle(color: Colors.white))),
+        ],
       ),
     );
   }

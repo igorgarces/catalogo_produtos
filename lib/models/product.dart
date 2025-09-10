@@ -1,19 +1,27 @@
 import 'dart:typed_data';
 
 class Product {
-  String name; 
-  double price;
-  String description;
-  String category;
-  String? imagePath;
-  Uint8List? imageBytes;
+  final String id;
+  final String name;
+  final String description;
+  final double price;
+  final String category;
+  final int stock;
+
+  // Novo campos para imagens e destaque
+  final Uint8List? imageBytes; // Web + Mobile
+  final String? imagePath;     // Mobile
+  final bool isFeatured;
 
   Product({
+    required this.id,
     required this.name,
-    required this.price,
     required this.description,
+    required this.price,
     required this.category,
-    this.imagePath,
+    required this.stock,
     this.imageBytes,
+    this.imagePath,
+    this.isFeatured = false,
   });
 }

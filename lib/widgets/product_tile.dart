@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../repositories/products_repository.dart';
+import '../models/product.dart';
 
 class ProductTile extends StatelessWidget {
   final Product product;
+  final bool isFavorite;
   final VoidCallback onAddToCart;
   final VoidCallback onEditProduct;
   final VoidCallback onDeleteProduct;
@@ -13,6 +15,7 @@ class ProductTile extends StatelessWidget {
   const ProductTile({
     super.key,
     required this.product,
+    required this.isFavorite,
     required this.onAddToCart,
     required this.onEditProduct,
     required this.onDeleteProduct,
@@ -22,115 +25,72 @@ class ProductTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageWidget = _buildImage();
-    final outOfStock = product.stock <= 0;
+    Widget imageWidget;
 
-    return InkWell(
-      onTap: onOpenDetails,
-      child: Container(
-        color: const Color(0xFF111111),
-        padding: const EdgeInsets.all(10),
-        margin: const EdgeInsets.only(bottom: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Stack(
+    if (product.imageBytes != null) {
+      imageWidget = Image.memory(product.imageBytes!, width: 60, height: 60, fit: BoxFit.cover);
+    } else if (!kIsWeb && product.imagePath != null) {
+      imageWidget = Image.file(File(product.imagePath!), width: 60, height: 60, fit: BoxFit.cover);
+    } else {
+      imageWidget = _fallbackImage();
+    }
+
+    return Container(
+      color: const Color(0xFF111111),
+      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ClipRRect(borderRadius: BorderRadius.circular(8), child: imageWidget),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(borderRadius: BorderRadius.circular(8), child: imageWidget),
-                if (product.isFeatured)
-                  Positioned(
-                    left: 6, top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade700,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text('Promo', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                if (outOfStock)
-                  Positioned.fill(
-                    child: Container(
-                      color: Colors.black54,
-                      alignment: Alignment.center,
-                      child: const Text('Sem estoque', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          product.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(product.isFavorite ? Icons.favorite : Icons.favorite_border, color: Colors.pinkAccent),
-                        onPressed: onToggleFavorite,
-                        tooltip: 'Favoritar',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    product.description,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text("R\$${product.price.toStringAsFixed(2)}", style: const TextStyle(fontSize: 14, color: Colors.white)),
-                      const SizedBox(width: 8),
-                      Icon(Icons.inventory_2, size: 14, color: Colors.grey.shade400),
-                      const SizedBox(width: 2),
-                      Text('${product.stock}', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              children: [
-                IconButton(icon: const Icon(Icons.add, color: Colors.white), onPressed: onAddToCart),
                 Row(
                   children: [
-                    IconButton(icon: const Icon(Icons.edit, color: Colors.yellow), onPressed: onEditProduct),
-                    IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: onDeleteProduct),
+                    Expanded(
+                      child: Text(product.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
+                    ),
+                    if (product.isFeatured)
+                      Container(
+                        margin: const EdgeInsets.only(left: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(4)),
+                        child: const Text('Destaque', style: TextStyle(color: Colors.white, fontSize: 10)),
+                      ),
                   ],
                 ),
+                const SizedBox(height: 2),
+                Text(product.description,
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                const SizedBox(height: 4),
+                Text("R\$${product.price.toStringAsFixed(2)}",
+                    style: const TextStyle(fontSize: 14, color: Colors.white)),
               ],
             ),
-          ],
-        ),
+          ),
+          Column(
+            children: [
+              IconButton(icon: const Icon(Icons.add, color: Colors.white), onPressed: onAddToCart),
+              Row(
+                children: [
+                  IconButton(icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: Colors.pink),
+                      onPressed: onToggleFavorite),
+                  IconButton(icon: const Icon(Icons.edit, color: Colors.yellow), onPressed: onEditProduct),
+                  IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: onDeleteProduct),
+                ],
+              )
+            ],
+          )
+        ],
       ),
     );
   }
 
-  Widget _buildImage() {
-    final placeholder = Container(
-      width: 60, height: 60,
-      color: Colors.grey.shade800,
-      child: const Icon(Icons.image_not_supported, color: Colors.white),
-    );
-
-    if (product.imageBytes != null) {
-      return Image.memory(product.imageBytes!, width: 60, height: 60, fit: BoxFit.cover, errorBuilder: (_, __, ___) => placeholder);
-    }
-    if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
-      return Image.network(product.imageUrl!, width: 60, height: 60, fit: BoxFit.cover, errorBuilder: (_, __, ___) => placeholder);
-    }
-    return placeholder;
+  Widget _fallbackImage() {
+    return Container(width: 60, height: 60, color: Colors.grey.shade800, child: const Icon(Icons.image_not_supported, color: Colors.white));
   }
 }
