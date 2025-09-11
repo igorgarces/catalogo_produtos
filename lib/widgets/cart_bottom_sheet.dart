@@ -1,79 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../repositories/cart_repository.dart';
+import '../notifiers/cart_notifier.dart';
 
 class CartBottomSheet extends StatelessWidget {
   const CartBottomSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CartRepository>(builder: (context, cart, _) {
-      return SizedBox(
-        height: MediaQuery.of(context).size.height * 0.7,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                const Text('Carrinho', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-              ]),
+    final cart = context.watch<CartNotifier>();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            "Carrinho",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Lista de itens no carrinho
+          if (cart.items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text("Seu carrinho está vazio."),
+            )
+          else
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: cart.items.length,
+                itemBuilder: (_, i) {
+                  final item = cart.items[i];
+                  return ListTile(
+                    leading: item.product.imageBytes != null
+                        ? Image.memory(item.product.imageBytes!, width: 40, height: 40, fit: BoxFit.cover)
+                        : const Icon(Icons.shopping_bag),
+                    title: Text(item.product.name),
+                    subtitle: Text("Qtd: ${item.quantity}"),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text("R\$ ${(item.product.price * item.quantity).toStringAsFixed(2)}"),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => cart.removeFromCart(item.product),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
-            const Divider(height: 1),
-            Expanded(
-              child: cart.items.isEmpty
-                  ? const Center(child: Text('Seu carrinho está vazio.'))
-                  : ListView.builder(
-                      itemCount: cart.items.length,
-                      itemBuilder: (_, i) {
-                        final it = cart.items[i];
-                        return ListTile(
-                          leading: CircleAvatar(child: Text(it.product.name[0].toUpperCase())),
-                          title: Text(it.product.name),
-                          subtitle: Text('R\$ ${it.product.price.toStringAsFixed(2)} x ${it.quantity}'),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.remove_circle, color: Colors.red),
-                            onPressed: () => cart.removeProduct(it.product),
-                          ),
+
+          const SizedBox(height: 16),
+
+          // Total e botão de checkout
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Total: R\$ ${cart.totalPrice.toStringAsFixed(2)}",
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              ElevatedButton(
+                onPressed: cart.items.isEmpty
+                    ? null
+                    : () {
+                        // Aqui futuramente podemos abrir uma tela de pagamento/checkout
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Finalizar compra ainda não implementado")),
                         );
                       },
-                    ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                boxShadow: [BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 6, offset: const Offset(0, -2))],
+                child: const Text("Finalizar"),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    const Text('Total:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text('R\$ ${cart.totalPrice.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  ]),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: cart.items.isEmpty
-                          ? null
-                          : () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Compra finalizada com sucesso!')));
-                              cart.clearCart();
-                              Navigator.pop(context);
-                            },
-                      child: const Text('Finalizar compra'),
-                    ),
-                  )
-                ],
-              ),
-            )
-          ],
-        ),
-      );
-    });
+            ],
+          ),
+        ],
+      ),
+    );
   }
+}
+
+// 🔹 Função helper para abrir o BottomSheet
+void openCartSheet(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (_) => const CartBottomSheet(),
+  );
 }
