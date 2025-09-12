@@ -45,7 +45,7 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final maxPrice = 6000.0;
+    const maxPrice = 6000.0;
 
     return Padding(
       padding: MediaQuery.of(context).viewInsets,

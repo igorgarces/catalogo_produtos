@@ -6,8 +6,8 @@ class ProductsRepository {
   final List<Product> _products = [
     Product(
         id: '1',
-        name: 'Camisa Azul',
-        description: 'Camisa azul de algodão',
+        name: 'Camisa branca',
+        description: 'Camisa branca de algodão',
         price: 49.9,
         category: 'Roupas',
         stock: 10,
