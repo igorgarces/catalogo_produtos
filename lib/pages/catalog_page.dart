@@ -50,7 +50,9 @@ class _CatalogPageState extends State<CatalogPage> {
     setState(() => _isLoading = true);
 
     final repo = context.read<ProductsRepository>();
-    final newItems = await repo.fetchProducts(start: _products.length, limit: 10);
+    final newItems =
+        await repo.fetchProducts(start: _products.length, limit: 10);
+
     setState(() {
       if (newItems.isEmpty) {
         _hasMore = false;
@@ -93,8 +95,8 @@ class _CatalogPageState extends State<CatalogPage> {
     return _products.where((p) {
       final matchCat =
           _selectedCategory == null || p.category == _selectedCategory;
-      final matchPrice = p.price >= _priceRange.start &&
-          p.price <= _priceRange.end;
+      final matchPrice =
+          p.price >= _priceRange.start && p.price <= _priceRange.end;
       final matchSearch = q.isEmpty ||
           p.name.toLowerCase().contains(q) ||
           p.description.toLowerCase().contains(q);
@@ -102,7 +104,12 @@ class _CatalogPageState extends State<CatalogPage> {
       final matchFav = !_filterFavorites || fav.isFavorite(p);
       final matchFeatured = !_filterFeatured || p.isFeatured;
 
-      return matchCat && matchPrice && matchSearch && matchStock && matchFav && matchFeatured;
+      return matchCat &&
+          matchPrice &&
+          matchSearch &&
+          matchStock &&
+          matchFav &&
+          matchFeatured;
     }).toList();
   }
 
@@ -178,7 +185,8 @@ class _CatalogPageState extends State<CatalogPage> {
                   const Divider(height: 1),
                   Expanded(
                     child: cart.items.isEmpty
-                        ? const Center(child: Text('Seu carrinho está vazio.'))
+                        ? const Center(
+                            child: Text('Seu carrinho está vazio.'))
                         : ListView.builder(
                             itemCount: cart.items.length,
                             itemBuilder: (_, i) {
@@ -186,18 +194,20 @@ class _CatalogPageState extends State<CatalogPage> {
                               return ListTile(
                                 leading: item.product.imageBytes != null
                                     ? CircleAvatar(
-                                        backgroundImage:
-                                            MemoryImage(item.product.imageBytes!),
+                                        backgroundImage: MemoryImage(
+                                            item.product.imageBytes!),
                                       )
                                     : CircleAvatar(
-                                        child: Text(item.product.name[0].toUpperCase())),
+                                        child: Text(item.product.name[0]
+                                            .toUpperCase())),
                                 title: Text(item.product.name),
                                 subtitle: Text(
                                     'R\$ ${item.product.price.toStringAsFixed(2)} x ${item.quantity}'),
                                 trailing: IconButton(
                                   icon: const Icon(Icons.remove_circle,
                                       color: Colors.red),
-                                  onPressed: () => cart.removeProduct(item.product),
+                                  onPressed: () =>
+                                      cart.removeProduct(item.product),
                                 ),
                               );
                             },
@@ -259,12 +269,13 @@ class _CatalogPageState extends State<CatalogPage> {
     final fav = context.watch<FavoritesNotifier>();
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Catálogo'),
-        backgroundColor: Colors.black,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         actions: [
-          IconButton(icon: const Icon(Icons.add_box_outlined), onPressed: _addProduct),
+          IconButton(
+              icon: const Icon(Icons.add_box_outlined), onPressed: _addProduct),
           IconButton(
               icon: const Icon(Icons.search),
               onPressed: () async {
@@ -273,8 +284,11 @@ class _CatalogPageState extends State<CatalogPage> {
                     delegate: _ProductSearchDelegate(_products));
                 if (q != null) setState(() => _searchQuery = q);
               }),
-          IconButton(icon: const Icon(Icons.filter_list), onPressed: _openFilters),
-          IconButton(icon: const Icon(Icons.brightness_6), onPressed: widget.onToggleTheme),
+          IconButton(
+              icon: const Icon(Icons.filter_list), onPressed: _openFilters),
+          IconButton(
+              icon: const Icon(Icons.brightness_6),
+              onPressed: widget.onToggleTheme),
         ],
       ),
       body: RefreshIndicator(
@@ -351,8 +365,8 @@ class _ProductSearchDelegate extends SearchDelegate<String> {
       [IconButton(onPressed: () => query = '', icon: const Icon(Icons.clear))];
 
   @override
-  Widget buildLeading(BuildContext context) =>
-      IconButton(onPressed: () => close(context, ''), icon: const Icon(Icons.arrow_back));
+  Widget buildLeading(BuildContext context) => IconButton(
+      onPressed: () => close(context, ''), icon: const Icon(Icons.arrow_back));
 
   @override
   Widget buildResults(BuildContext context) {
@@ -375,8 +389,9 @@ class _ProductSearchDelegate extends SearchDelegate<String> {
         .toList();
     return ListView.builder(
       itemCount: results.length,
-      itemBuilder: (_, i) =>
-          ListTile(title: Text(results[i].name), onTap: () => query = results[i].name),
+      itemBuilder: (_, i) => ListTile(
+          title: Text(results[i].name),
+          onTap: () => query = results[i].name),
     );
   }
 }
