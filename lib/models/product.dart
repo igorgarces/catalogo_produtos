@@ -9,9 +9,8 @@ class Product {
   final int stock;
   final bool isFeatured;
 
-  // Imagem
-  final Uint8List? imageBytes; // preview web/mobile
-  final String? imagePath;     // mobile storage
+  final Uint8List? imageBytes;
+  final String? imagePath;
 
   Product({
     required this.id,
@@ -47,5 +46,30 @@ class Product {
       imagePath: imagePath ?? this.imagePath,
       isFeatured: isFeatured ?? this.isFeatured,
     );
+  }
+
+  // 🔹 Para JSON
+  factory Product.fromJson(Map<String, dynamic> json) {
+    return Product(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      price: (json['price'] as num).toDouble(),
+      category: json['category'],
+      stock: json['stock'],
+      isFeatured: json['isFeatured'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'price': price,
+      'category': category,
+      'stock': stock,
+      'isFeatured': isFeatured,
+    };
   }
 }

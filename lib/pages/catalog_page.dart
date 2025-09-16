@@ -240,8 +240,8 @@ class _CatalogPageState extends State<CatalogPage> {
                           child: ElevatedButton(
                             onPressed: cart.items.isEmpty
                                 ? null
-                                : () {
-                                    cart.clearCart();
+                                : () async {
+                                    await cart.finalizeOrder();
                                     ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
                                             content:

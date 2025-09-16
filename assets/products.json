@@ -1,0 +1,29 @@
+[
+  {
+    "id": "1",
+    "name": "Camisa branca",
+    "description": "Camisa branca de algodão",
+    "price": 49.9,
+    "category": "Roupas",
+    "stock": 10,
+    "isFeatured": true
+  },
+  {
+    "id": "2",
+    "name": "As Cronicas de Galliot",
+    "description": "Meu livro autoral de fantasia",
+    "price": 79.9,
+    "category": "Livros",
+    "stock": 5,
+    "isFeatured": false
+  },
+  {
+    "id": "3",
+    "name": "Fone de Ouvido",
+    "description": "Fone Bluetooth sem fio",
+    "price": 199.9,
+    "category": "Eletrônicos",
+    "stock": 3,
+    "isFeatured": true
+  }
+]

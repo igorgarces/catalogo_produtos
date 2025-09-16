@@ -1,16 +1,15 @@
 import 'package:flutter/foundation.dart';
 import '../models/product.dart';
+import '../repositories/file_storage.dart';
 
 class CartItem {
   final Product product;
   int quantity;
-
   CartItem({required this.product, this.quantity = 1});
 }
 
 class CartNotifier extends ChangeNotifier {
   final List<CartItem> _items = [];
-
   List<CartItem> get items => List.unmodifiable(_items);
 
   void addProduct(Product product) {
@@ -42,6 +41,19 @@ class CartNotifier extends ChangeNotifier {
 
   double get totalPrice => _items.fold(0, (sum, i) => sum + i.product.price * i.quantity);
   int get totalItems => _items.fold(0, (sum, i) => sum + i.quantity);
+
+  // Salvar pedido ao finalizar
+  Future<void> finalizeOrder() async {
+    if (_items.isEmpty) return;
+    final orderData = _items.map((i) => {
+      'id': i.product.id,
+      'name': i.product.name,
+      'price': i.product.price,
+      'quantity': i.quantity,
+    }).toList();
+    await FileStorage.saveJson('orders.json', orderData);
+    clearCart();
+  }
 
   void removeFromCart(Product product) {}
 }

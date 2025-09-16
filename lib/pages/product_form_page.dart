@@ -1,9 +1,9 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/product.dart';
-import '../repositories/products_repository.dart';
 
 class ProductFormPage extends StatefulWidget {
   final Product? product;
@@ -16,10 +16,10 @@ class ProductFormPage extends StatefulWidget {
 class _ProductFormPageState extends State<ProductFormPage> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
-  late TextEditingController _descController;
   late TextEditingController _priceController;
   late TextEditingController _stockController;
-  String? _selectedCategory;
+  late TextEditingController _descriptionController;
+  String? _category;
   bool _isFeatured = false;
   Uint8List? _imageBytes;
 
@@ -28,33 +28,46 @@ class _ProductFormPageState extends State<ProductFormPage> {
     super.initState();
     final p = widget.product;
     _nameController = TextEditingController(text: p?.name ?? '');
-    _descController = TextEditingController(text: p?.description ?? '');
     _priceController = TextEditingController(text: p?.price.toString() ?? '');
     _stockController = TextEditingController(text: p?.stock.toString() ?? '');
-    _selectedCategory = p?.category;
+    _descriptionController = TextEditingController(text: p?.description ?? '');
+    _category = p?.category;
     _isFeatured = p?.isFeatured ?? false;
     _imageBytes = p?.imageBytes;
   }
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final result = await picker.pickImage(source: ImageSource.gallery);
-    if (result != null) {
-      final bytes = await result.readAsBytes();
-      setState(() => _imageBytes = bytes);
+    if (kIsWeb) {
+      // Web
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+      if (result != null && result.files.isNotEmpty) {
+        setState(() => _imageBytes = result.files.first.bytes);
+      }
+    } else {
+      // Mobile
+      final picker = ImagePicker();
+      final result = await picker.pickImage(source: ImageSource.gallery);
+      if (result != null) {
+        final bytes = await result.readAsBytes();
+        setState(() => _imageBytes = bytes);
+      }
     }
   }
 
-  void _save() {
+  void _saveProduct() {
     if (!_formKey.currentState!.validate()) return;
 
     final product = Product(
-      id: widget.product?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-      name: _nameController.text.trim(),
-      description: _descController.text.trim(),
-      price: double.tryParse(_priceController.text.trim()) ?? 0,
-      category: _selectedCategory ?? 'Sem categoria',
-      stock: int.tryParse(_stockController.text.trim()) ?? 0,
+      id: widget.product?.id ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
+      name: _nameController.text,
+      price: double.tryParse(_priceController.text) ?? 0,
+      stock: int.tryParse(_stockController.text) ?? 0,
+      description: _descriptionController.text,
+      category: _category ?? 'Sem categoria',
       isFeatured: _isFeatured,
       imageBytes: _imageBytes,
     );
@@ -64,67 +77,70 @@ class _ProductFormPageState extends State<ProductFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    final repo = context.read<ProductsRepository>();
     return Scaffold(
-      appBar: AppBar(title: Text(widget.product == null ? 'Adicionar Produto' : 'Editar Produto')),
-      body: Padding(
+      appBar: AppBar(
+        title: Text(widget.product == null
+            ? 'Adicionar Produto'
+            : 'Editar Produto'),
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child: ListView(
+          child: Column(
             children: [
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  width: 150,
+                  height: 150,
+                  color: Colors.grey[200],
+                  child: _imageBytes != null
+                      ? Image.memory(_imageBytes!, fit: BoxFit.cover)
+                      : const Icon(Icons.image, size: 50),
+                ),
+              ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Nome'),
-                validator: (v) => v == null || v.isEmpty ? 'Informe o nome' : null,
+                validator: (v) =>
+                    v!.isEmpty ? 'Preencha o nome do produto' : null,
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _descController,
-                decoration: const InputDecoration(labelText: 'Descrição'),
-                maxLines: 3,
-                validator: (v) => v == null || v.isEmpty ? 'Informe a descrição' : null,
-              ),
-              const SizedBox(height: 12),
               TextFormField(
                 controller: _priceController,
                 decoration: const InputDecoration(labelText: 'Preço'),
-                keyboardType: TextInputType.number,
-                validator: (v) => (v == null || double.tryParse(v) == null) ? 'Informe um preço válido' : null,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                validator: (v) =>
+                    v!.isEmpty ? 'Preencha o preço do produto' : null,
               ),
-              const SizedBox(height: 12),
               TextFormField(
                 controller: _stockController,
                 decoration: const InputDecoration(labelText: 'Estoque'),
                 keyboardType: TextInputType.number,
-                validator: (v) => (v == null || int.tryParse(v) == null) ? 'Informe a quantidade em estoque' : null,
+                validator: (v) =>
+                    v!.isEmpty ? 'Preencha o estoque do produto' : null,
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _selectedCategory,
-                items: repo.categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (v) => setState(() => _selectedCategory = v),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(labelText: 'Descrição'),
+              ),
+              TextFormField(
+                controller: TextEditingController(text: _category),
                 decoration: const InputDecoration(labelText: 'Categoria'),
+                onChanged: (v) => _category = v,
               ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                title: const Text('Produto em destaque'),
+              CheckboxListTile(
+                title: const Text('Destaque'),
                 value: _isFeatured,
-                onChanged: (v) => setState(() => _isFeatured = v),
+                onChanged: (v) => setState(() => _isFeatured = v ?? false),
               ),
-              const SizedBox(height: 12),
-              GestureDetector(
-                onTap: _pickImage,
-                child: _imageBytes != null
-                    ? Image.memory(_imageBytes!, height: 200, fit: BoxFit.cover)
-                    : Container(
-                        height: 200,
-                        color: Colors.grey[300],
-                        child: const Center(child: Text('Clique para selecionar imagem')),
-                      ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _saveProduct,
+                child: const Text('Salvar'),
               ),
-              const SizedBox(height: 24),
-              ElevatedButton(onPressed: _save, child: const Text('Salvar')),
             ],
           ),
         ),
