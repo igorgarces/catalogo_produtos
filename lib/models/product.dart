@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 class Product {
@@ -48,16 +49,32 @@ class Product {
     );
   }
 
-  // 🔹 Para JSON
   factory Product.fromJson(Map<String, dynamic> json) {
+    Uint8List? bytes;
+    if (json['imageBytes'] != null) {
+      // imageBytes pode ser lista int ou base64 string — tratamos ambos
+      final raw = json['imageBytes'];
+      if (raw is String) {
+        try {
+          bytes = base64Decode(raw);
+        } catch (_) {
+          bytes = null;
+        }
+      } else if (raw is List) {
+        bytes = Uint8List.fromList(List<int>.from(raw));
+      }
+    }
+
     return Product(
-      id: json['id'],
-      name: json['name'],
-      description: json['description'],
+      id: json['id'].toString(),
+      name: json['name'] ?? '',
+      description: json['description'] ?? '',
       price: (json['price'] as num).toDouble(),
-      category: json['category'],
-      stock: json['stock'],
+      category: json['category'] ?? 'Sem categoria',
+      stock: (json['stock'] is int) ? json['stock'] : int.tryParse('${json['stock']}') ?? 0,
       isFeatured: json['isFeatured'] ?? false,
+      imageBytes: bytes,
+      imagePath: json['imagePath'],
     );
   }
 
@@ -70,6 +87,9 @@ class Product {
       'category': category,
       'stock': stock,
       'isFeatured': isFeatured,
+      // Salvamos imageBytes como base64 (mais compacto para JSON e compatível com web)
+      'imageBytes': imageBytes != null ? base64Encode(imageBytes!) : null,
+      'imagePath': imagePath,
     };
   }
 }

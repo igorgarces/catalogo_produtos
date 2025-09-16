@@ -6,8 +6,9 @@ import '../notifiers/favorites_notifier.dart';
 import '../repositories/products_repository.dart';
 import '../widgets/product_tile.dart';
 import '../widgets/filters_bottom_sheet.dart';
-import 'product_form_page.dart';
-import 'product_detail_page.dart';
+import '../pages/product_form_page.dart';
+import '../pages/product_detail_page.dart';
+import '../pages/purchase_history_page.dart';
 
 class CatalogPage extends StatefulWidget {
   final VoidCallback onToggleTheme;
@@ -155,6 +156,8 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 
   void _showCart(BuildContext context) {
+    final cart = context.read<CartNotifier>();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -162,102 +165,96 @@ class _CatalogPageState extends State<CatalogPage> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) {
-        return Consumer<CartNotifier>(
-          builder: (_, cart, __) {
-            return SizedBox(
-              height: MediaQuery.of(ctx).size.height * 0.7,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
+        return SizedBox(
+          height: MediaQuery.of(ctx).size.height * 0.7,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Carrinho',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(ctx)),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: cart.items.isEmpty
+                    ? const Center(child: Text('Seu carrinho está vazio.'))
+                    : ListView.builder(
+                        itemCount: cart.items.length,
+                        itemBuilder: (_, i) {
+                          final item = cart.items[i];
+                          return ListTile(
+                            leading: item.product.imageBytes != null
+                                ? CircleAvatar(
+                                    backgroundImage:
+                                        MemoryImage(item.product.imageBytes!),
+                                  )
+                                : CircleAvatar(
+                                    child: Text(item.product.name[0].toUpperCase()),
+                                  ),
+                            title: Text(item.product.name),
+                            subtitle: Text(
+                                'R\$ ${item.product.price.toStringAsFixed(2)} x ${item.quantity}'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.remove_circle,
+                                  color: Colors.red),
+                              onPressed: () => cart.removeProduct(item.product),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Carrinho',
+                        const Text('Total:',
                             style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
-                        IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(ctx)),
+                                fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text('R\$ ${cart.totalPrice.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
                       ],
                     ),
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: cart.items.isEmpty
-                        ? const Center(
-                            child: Text('Seu carrinho está vazio.'))
-                        : ListView.builder(
-                            itemCount: cart.items.length,
-                            itemBuilder: (_, i) {
-                              final item = cart.items[i];
-                              return ListTile(
-                                leading: item.product.imageBytes != null
-                                    ? CircleAvatar(
-                                        backgroundImage: MemoryImage(
-                                            item.product.imageBytes!),
-                                      )
-                                    : CircleAvatar(
-                                        child: Text(item.product.name[0]
-                                            .toUpperCase())),
-                                title: Text(item.product.name),
-                                subtitle: Text(
-                                    'R\$ ${item.product.price.toStringAsFixed(2)} x ${item.quantity}'),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.remove_circle,
-                                      color: Colors.red),
-                                  onPressed: () =>
-                                      cart.removeProduct(item.product),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(16)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Total:',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16)),
-                            Text('R\$ ${cart.totalPrice.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16)),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: cart.items.isEmpty
-                                ? null
-                                : () async {
-                                    await cart.finalizeOrder();
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                            content:
-                                                Text('Compra finalizada!')));
-                                    Navigator.pop(ctx);
-                                  },
-                            child: const Text('Finalizar compra'),
-                          ),
-                        )
-                      ],
-                    ),
-                  )
-                ],
-              ),
-            );
-          },
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: cart.items.isEmpty
+                            ? null
+                            : () async {
+                                await cart.finalizePurchase();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text('Compra finalizada e salva!')));
+                                Navigator.pop(ctx);
+                              },
+                        child: const Text('Finalizar compra'),
+                      ),
+                    )
+                  ],
+                ),
+              )
+            ],
+          ),
         );
       },
     );
@@ -289,6 +286,13 @@ class _CatalogPageState extends State<CatalogPage> {
           IconButton(
               icon: const Icon(Icons.brightness_6),
               onPressed: widget.onToggleTheme),
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PurchaseHistoryPage()),
+            ),
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -355,7 +359,7 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 }
 
-// SearchDelegate simples
+// 🔹 SearchDelegate simples
 class _ProductSearchDelegate extends SearchDelegate<String> {
   final List<Product> products;
   _ProductSearchDelegate(this.products);
@@ -365,8 +369,8 @@ class _ProductSearchDelegate extends SearchDelegate<String> {
       [IconButton(onPressed: () => query = '', icon: const Icon(Icons.clear))];
 
   @override
-  Widget buildLeading(BuildContext context) => IconButton(
-      onPressed: () => close(context, ''), icon: const Icon(Icons.arrow_back));
+  Widget buildLeading(BuildContext context) =>
+      IconButton(onPressed: () => close(context, ''), icon: const Icon(Icons.arrow_back));
 
   @override
   Widget buildResults(BuildContext context) {

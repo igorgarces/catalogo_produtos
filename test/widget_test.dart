@@ -1,30 +1,33 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+// widget_test.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:catalogo_produtos/main.dart';
+import 'package:catalogo_produtos/repositories/products_repository.dart';
+import 'package:catalogo_produtos/notifiers/favorites_notifier.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Smoke test: MyApp builds correctly', (WidgetTester tester) async {
+    // Criar instâncias necessárias
+    final productsRepo = ProductsRepository();
+    final favRepo = FavoritesNotifier();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Build our app and trigger a frame
+    await tester.pumpWidget(MyApp(
+      productsRepo: productsRepo,
+      favRepo: favRepo,
+    ));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Verifica se o título do App aparece na tela
+    expect(find.text('Catalog App'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Você pode adicionar interações simples, por exemplo:
+    // Verifica se o carrinho está presente
+    expect(find.byIcon(Icons.shopping_cart), findsOneWidget);
+
+    // Interação de teste (opcional)
+    // await tester.tap(find.byIcon(Icons.add_shopping_cart).first);
+    // await tester.pump();
+    // expect(find.text('1'), findsNothing); // ajuste conforme lógica do app
   });
 }

@@ -1,58 +1,66 @@
 import '../models/product.dart';
 import 'file_storage.dart';
-import 'dart:typed_data';
 
 class ProductsRepository {
   final List<String> categories = ['Roupas', 'Livros', 'Eletrônicos'];
   final List<Product> _products = [];
 
-  ProductsRepository() {
-    loadProducts();
+  ProductsRepository();
+
+  Future<void> init() async {
+    await loadProducts();
   }
 
   Future<void> loadProducts() async {
     final data = await FileStorage.readJson('products.json');
     if (data != null) {
       _products.clear();
-      _products.addAll((data as List).map((x) => Product(
-        id: x['id'],
-        name: x['name'],
-        description: x['description'],
-        price: (x['price'] as num).toDouble(),
-        category: x['category'],
-        stock: x['stock'],
-        isFeatured: x['isFeatured'] ?? false,
-        imageBytes: x['imageBytes'] != null
-            ? Uint8List.fromList(List<int>.from(x['imageBytes']))
-            : null,
-      )));
+      _products.addAll(
+        (data as List).map(
+          (x) => Product.fromJson(Map<String, dynamic>.from(x)),
+        ),
+      );
     } else {
-      // Se não existir, cria com produtos iniciais hardcoded
+      // Produtos iniciais
       _products.addAll([
-        Product(id: '1', name: 'Camisa branca', description: 'Camisa branca de algodão', price: 49.9, category: 'Roupas', stock: 10, isFeatured: true),
-        Product(id: '2', name: 'As Crônicas de Galliot', description: 'Meu livro autoral de fantasia', price: 79.9, category: 'Livros', stock: 5),
-        Product(id: '3', name: 'Fone de Ouvido', description: 'Fone Bluetooth sem fio', price: 199.9, category: 'Eletrônicos', stock: 3, isFeatured: true),
+        Product(
+          id: '1',
+          name: 'Camisa branca',
+          description: 'Camisa branca de algodão',
+          price: 49.9,
+          category: 'Roupas',
+          stock: 10,
+          isFeatured: true,
+        ),
+        Product(
+          id: '2',
+          name: 'As Crônicas de Galliot',
+          description: 'Meu livro autoral de fantasia',
+          price: 79.9,
+          category: 'Livros',
+          stock: 5,
+        ),
+        Product(
+          id: '3',
+          name: 'Fone de Ouvido',
+          description: 'Fone Bluetooth sem fio',
+          price: 199.9,
+          category: 'Eletrônicos',
+          stock: 3,
+          isFeatured: true,
+        ),
       ]);
-      saveProducts();
+      await saveProducts();
     }
   }
 
   Future<void> saveProducts() async {
-    final data = _products.map((p) => {
-      'id': p.id,
-      'name': p.name,
-      'description': p.description,
-      'price': p.price,
-      'category': p.category,
-      'stock': p.stock,
-      'isFeatured': p.isFeatured,
-      'imageBytes': p.imageBytes?.toList(),
-    }).toList();
+    final data = _products.map((p) => p.toJson()).toList();
     await FileStorage.saveJson('products.json', data);
   }
 
   Future<List<Product>> fetchProducts({int start = 0, int limit = 10}) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 300));
     if (start >= _products.length) return [];
     final end = (start + limit).clamp(0, _products.length);
     return _products.sublist(start, end);
@@ -75,4 +83,14 @@ class ProductsRepository {
     _products.removeWhere((p) => p.id == id);
     saveProducts();
   }
+
+  Product? findById(String id) {
+    try {
+      return _products.firstWhere((p) => p.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  List<Product> allProducts() => List.unmodifiable(_products);
 }

@@ -1,16 +1,17 @@
 import 'package:flutter/foundation.dart';
 import '../models/product.dart';
-import '../repositories/file_storage.dart';
-
-class CartItem {
-  final Product product;
-  int quantity;
-  CartItem({required this.product, this.quantity = 1});
-}
+import '../models/cart_item.dart';
+import '../storage/purchase_storage.dart';
+import '../models/purchase.dart';
 
 class CartNotifier extends ChangeNotifier {
   final List<CartItem> _items = [];
+
   List<CartItem> get items => List.unmodifiable(_items);
+
+  int get totalItems => _items.fold(0, (sum, i) => sum + i.quantity);
+
+  double get totalPrice => _items.fold(0.0, (sum, i) => sum + i.product.price * i.quantity);
 
   void addProduct(Product product) {
     final index = _items.indexWhere((i) => i.product.id == product.id);
@@ -34,26 +35,28 @@ class CartNotifier extends ChangeNotifier {
     }
   }
 
+  void removeFromCart(Product product) {
+    _items.removeWhere((i) => i.product.id == product.id);
+    notifyListeners();
+  }
+
   void clearCart() {
     _items.clear();
     notifyListeners();
   }
 
-  double get totalPrice => _items.fold(0, (sum, i) => sum + i.product.price * i.quantity);
-  int get totalItems => _items.fold(0, (sum, i) => sum + i.quantity);
-
-  // Salvar pedido ao finalizar
-  Future<void> finalizeOrder() async {
+  Future<void> finalizePurchase() async {
     if (_items.isEmpty) return;
-    final orderData = _items.map((i) => {
-      'id': i.product.id,
-      'name': i.product.name,
-      'price': i.product.price,
-      'quantity': i.quantity,
-    }).toList();
-    await FileStorage.saveJson('orders.json', orderData);
+
+    final purchase = Purchase(
+      id: 'order_${DateTime.now().millisecondsSinceEpoch}',
+      date: DateTime.now(),
+      items: _items.map((i) => i.product).toList(),
+      total: totalPrice,
+    );
+
+    await PurchaseStorage.savePurchase(purchase);
+
     clearCart();
   }
-
-  void removeFromCart(Product product) {}
 }
