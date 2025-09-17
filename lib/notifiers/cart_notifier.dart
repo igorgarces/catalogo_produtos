@@ -11,14 +11,15 @@ class CartNotifier extends ChangeNotifier {
 
   int get totalItems => _items.fold(0, (sum, i) => sum + i.quantity);
 
-  double get totalPrice => _items.fold(0.0, (sum, i) => sum + i.product.price * i.quantity);
+  double get totalPrice =>
+      _items.fold(0.0, (sum, i) => sum + i.product.price * i.quantity);
 
   void addProduct(Product product) {
     final index = _items.indexWhere((i) => i.product.id == product.id);
     if (index != -1) {
       _items[index].quantity++;
     } else {
-      _items.add(CartItem(product: product));
+      _items.add(CartItem(product: product, quantity: 1));
     }
     notifyListeners();
   }
@@ -57,6 +58,6 @@ class CartNotifier extends ChangeNotifier {
 
     await PurchaseStorage.savePurchase(purchase);
 
-    clearCart();
+    clearCart(); // 🔹 limpa o carrinho e notifica listeners
   }
 }

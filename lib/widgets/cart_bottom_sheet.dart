@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../notifiers/cart_notifier.dart';
-//import '../models/cart_item.dart';
+import '../notifiers/purchase_notifier.dart';
 
 class CartBottomSheet extends StatelessWidget {
   const CartBottomSheet({super.key});
@@ -18,7 +18,10 @@ class CartBottomSheet extends StatelessWidget {
           const Text("Carrinho", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           if (cart.items.isEmpty)
-            const Padding(padding: EdgeInsets.all(16), child: Text("Seu carrinho está vazio."))
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text("Seu carrinho está vazio."),
+            )
           else
             Flexible(
               child: ListView.builder(
@@ -57,8 +60,16 @@ class CartBottomSheet extends StatelessWidget {
                     ? null
                     : () async {
                         await cart.finalizePurchase();
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Compra finalizada e salva!")));
-                        Navigator.pop(context);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Compra finalizada e salva!"),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+
+                        await Future.delayed(const Duration(milliseconds: 200));
+                        Navigator.of(context).pop();
                       },
                 child: const Text("Finalizar"),
               ),

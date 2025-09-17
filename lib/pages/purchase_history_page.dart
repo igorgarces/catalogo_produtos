@@ -1,8 +1,10 @@
-import 'package:catalogo_produtos/models/purchase.dart';
-import 'package:catalogo_produtos/storage/purchase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../notifiers/cart_notifier.dart';
+import '../storage/purchase_storage.dart';
+import '../models/purchase.dart';
 import '../models/product.dart';
-
+import 'catalog_page.dart';
 
 class PurchaseHistoryPage extends StatefulWidget {
   const PurchaseHistoryPage({super.key});
@@ -17,15 +19,39 @@ class _PurchaseHistoryPageState extends State<PurchaseHistoryPage> {
   @override
   void initState() {
     super.initState();
-    _purchasesFuture = PurchaseStorage.loadPurchases();
+    _loadPurchases();
+  }
+
+  void _loadPurchases() {
+    setState(() {
+      _purchasesFuture = PurchaseStorage.loadPurchases();
+    });
+  }
+
+  Future<void> _finalizePurchase(BuildContext context) async {
+    final cart = context.read<CartNotifier>();
+
+    if (cart.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Carrinho vazio! Adicione produtos antes.")),
+      );
+      return;
+    }
+
+    await cart.finalizePurchase();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Compra finalizada e registrada!")),
+    );
+
+    // Recarrega histórico
+    _loadPurchases();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Histórico de Compras'),
-      ),
+      appBar: AppBar(title: const Text('Histórico de Compras')),
       body: FutureBuilder<List<Purchase>>(
         future: _purchasesFuture,
         builder: (context, snapshot) {
@@ -36,9 +62,7 @@ class _PurchaseHistoryPageState extends State<PurchaseHistoryPage> {
           final purchases = snapshot.data ?? [];
 
           if (purchases.isEmpty) {
-            return const Center(
-              child: Text('Nenhuma compra realizada ainda.'),
-            );
+            return const Center(child: Text('Nenhuma compra realizada ainda.'));
           }
 
           return ListView.builder(
@@ -54,12 +78,17 @@ class _PurchaseHistoryPageState extends State<PurchaseHistoryPage> {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text('Total: R\$ ${purchase.total.toStringAsFixed(2)}'),
-                  children: purchase.items.map((p) => _buildProductRow(p)).toList(),
+                  children: purchase.items.map(_buildProductRow).toList(),
                 ),
               );
             },
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.shopping_cart_checkout),
+        label: const Text("Finalizar Compra"),
+        onPressed: () => _finalizePurchase(context),
       ),
     );
   }
@@ -67,10 +96,12 @@ class _PurchaseHistoryPageState extends State<PurchaseHistoryPage> {
   Widget _buildProductRow(Product product) {
     return ListTile(
       leading: product.imageBytes != null
-          ? Image.memory(product.imageBytes!, width: 40, height: 40, fit: BoxFit.cover)
+          ? Image.memory(product.imageBytes!,
+              width: 40, height: 40, fit: BoxFit.cover)
           : const Icon(Icons.image),
       title: Text(product.name),
-      subtitle: Text('Preço: R\$ ${product.price.toStringAsFixed(2)} - Estoque: ${product.stock}'),
+      subtitle: Text(
+          'Preço: R\$ ${product.price.toStringAsFixed(2)} - Estoque: ${product.stock}'),
     );
   }
 }

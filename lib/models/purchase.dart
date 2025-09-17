@@ -31,4 +31,6 @@ class Purchase {
       };
 
   String toJsonString() => jsonEncode(toJson());
+
+  static fromCart(cartItems) {}
 }

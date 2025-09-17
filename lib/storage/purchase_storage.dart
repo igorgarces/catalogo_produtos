@@ -35,4 +35,8 @@ class PurchaseStorage {
     final list = jsonDecode(content) as List;
     return list.map((e) => Purchase.fromJson(Map<String, dynamic>.from(e))).toList();
   }
+
+  static Future<void> clearCart() async {}
+
+  static Future loadCart() async {}
 }
