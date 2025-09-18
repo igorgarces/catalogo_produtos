@@ -38,8 +38,9 @@ class ProductsNotifier extends ChangeNotifier {
   // Inicializa carregando produtos do repositório
   Future<void> init() async {
     await repo.init();
-    _products.clear();
-    _products.addAll(repo.allProducts());
+    _products
+      ..clear()
+      ..addAll(repo.allProducts());
     notifyListeners();
   }
 
@@ -50,7 +51,10 @@ class ProductsNotifier extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final newItems = await repo.fetchProducts(start: _products.length, limit: limit);
+      final newItems = await repo.fetchProducts(
+        start: _products.length,
+        limit: limit,
+      );
       if (newItems.isEmpty) {
         _hasMore = false;
       } else {
@@ -64,10 +68,19 @@ class ProductsNotifier extends ChangeNotifier {
     }
   }
 
-  void refresh() {
-    _products.clear();
+  // 🔹 Agora o refresh recarrega direto do arquivo
+  Future<void> refresh() async {
+    _isLoading = true;
+    notifyListeners();
+
+    await repo.loadProducts(forceReload: true);
+    _products
+      ..clear()
+      ..addAll(repo.allProducts());
+
     _hasMore = true;
-    fetchNextPage();
+    _isLoading = false;
+    notifyListeners();
   }
 
   // Manipulação de produtos
@@ -126,13 +139,22 @@ class ProductsNotifier extends ChangeNotifier {
   List<Product> get filteredProducts {
     final q = _searchQuery.trim().toLowerCase();
     return _products.where((p) {
-      final matchesCategory = _selectedCategory == null || p.category == _selectedCategory;
-      final matchesPrice = p.price >= _priceRange.start && p.price <= _priceRange.end;
-      final matchesSearch = q.isEmpty || p.name.toLowerCase().contains(q) || p.description.toLowerCase().contains(q);
+      final matchesCategory =
+          _selectedCategory == null || p.category == _selectedCategory;
+      final matchesPrice =
+          p.price >= _priceRange.start && p.price <= _priceRange.end;
+      final matchesSearch = q.isEmpty ||
+          p.name.toLowerCase().contains(q) ||
+          p.description.toLowerCase().contains(q);
       final matchesStock = !_filterInStock || p.stock > 0;
       final matchesFav = !_filterFavorites || favRepo.isFavorite(p);
       final matchesFeatured = !_filterFeatured || p.isFeatured;
-      return matchesCategory && matchesPrice && matchesSearch && matchesStock && matchesFav && matchesFeatured;
+      return matchesCategory &&
+          matchesPrice &&
+          matchesSearch &&
+          matchesStock &&
+          matchesFav &&
+          matchesFeatured;
     }).toList();
   }
 }

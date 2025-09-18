@@ -1,7 +1,3 @@
-//import 'dart:convert';
-//import 'dart:io';
-//import 'package:flutter/foundation.dart' show kIsWeb;
-//import 'package:flutter/services.dart' show rootBundle;
 import '../models/product.dart';
 import 'file_storage.dart';
 
@@ -18,48 +14,47 @@ class ProductsRepository {
   }
 
   Future<void> loadProducts({bool forceReload = false}) async {
+    if (!forceReload && _products.isNotEmpty) return; // 🔹 evita duplicação
+
     final data = await FileStorage.readJson(_fileName);
+    _products.clear();
 
-    if (data != null || forceReload) {
-      _products.clear();
-
-      if (data != null) {
-        _products.addAll(
-          (data as List)
-              .map((x) => Product.fromJson(Map<String, dynamic>.from(x))),
-        );
-      } else {
-        // fallback inicial
-        _products.addAll([
-          Product(
-            id: '1',
-            name: 'Camisa branca',
-            description: 'Camisa branca de algodão',
-            price: 49.9,
-            category: 'Roupas',
-            stock: 10,
-            isFeatured: true,
-          ),
-          Product(
-            id: '2',
-            name: 'As Crônicas de Galliot',
-            description: 'Meu livro autoral de fantasia',
-            price: 79.9,
-            category: 'Livros',
-            stock: 5,
-          ),
-          Product(
-            id: '3',
-            name: 'Fone de Ouvido',
-            description: 'Fone Bluetooth sem fio',
-            price: 199.9,
-            category: 'Eletrônicos',
-            stock: 3,
-            isFeatured: true,
-          ),
-        ]);
-        await saveProducts();
-      }
+    if (data != null) {
+      _products.addAll(
+        (data as List)
+            .map((x) => Product.fromJson(Map<String, dynamic>.from(x))),
+      );
+    } else {
+      // fallback inicial
+      _products.addAll([
+        Product(
+          id: '1',
+          name: 'Camisa branca',
+          description: 'Camisa branca de algodão',
+          price: 49.9,
+          category: 'Roupas',
+          stock: 10,
+          isFeatured: true,
+        ),
+        Product(
+          id: '2',
+          name: 'As Crônicas de Galliot',
+          description: 'Meu livro autoral de fantasia',
+          price: 79.9,
+          category: 'Livros',
+          stock: 5,
+        ),
+        Product(
+          id: '3',
+          name: 'Fone de Ouvido',
+          description: 'Fone Bluetooth sem fio',
+          price: 199.9,
+          category: 'Eletrônicos',
+          stock: 3,
+          isFeatured: true,
+        ),
+      ]);
+      await saveProducts();
     }
   }
 

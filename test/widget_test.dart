@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:catalogo_produtos/main.dart';
 import 'package:catalogo_produtos/repositories/products_repository.dart';
+
 import 'package:catalogo_produtos/notifiers/favorites_notifier.dart';
 
 void main() {

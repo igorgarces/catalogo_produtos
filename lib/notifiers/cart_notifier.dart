@@ -20,12 +20,16 @@ class CartNotifier extends ChangeNotifier {
 
   int get totalItems => _items.fold(0, (prev, e) => prev + e.quantity);
 
-  double get totalPrice => _items.fold(0, (prev, e) => prev + e.product.price * e.quantity);
+  double get totalPrice =>
+      _items.fold(0, (prev, e) => prev + e.product.price * e.quantity);
 
   void addProduct(Product product) {
     final index = _items.indexWhere((i) => i.product.id == product.id);
-    if (index != -1) _items[index].quantity++;
-    else _items.add(CartItem(product: product));
+    if (index != -1) {
+      _items[index].quantity++;
+    } else {
+      _items.add(CartItem(product: product));
+    }
     notifyListeners();
   }
 
@@ -45,14 +49,18 @@ class CartNotifier extends ChangeNotifier {
 
   Future<void> finalizePurchase() async {
     if (_items.isEmpty) return;
+
     final purchase = Purchase(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       items: _items.map((i) => i.product).toList(),
       total: totalPrice,
       date: DateTime.now(),
     );
+
     await ordersRepo.addOrder(purchase);
-    clearCart();
+
+    clearCart(); // 🔹 garante que carrinho esvazia depois da compra
+    notifyListeners();
   }
 
   void removeFromCart(Product product) {}
