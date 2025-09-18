@@ -1,4 +1,5 @@
 // widget_test.dart
+import 'package:catalogo_produtos/repositories/order_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,26 +9,49 @@ import 'package:catalogo_produtos/notifiers/favorites_notifier.dart';
 
 void main() {
   testWidgets('Smoke test: MyApp builds correctly', (WidgetTester tester) async {
-    // Criar instâncias necessárias
+    // Inicializa os repositórios
     final productsRepo = ProductsRepository();
+    await productsRepo.init();
+
+    final ordersRepo = OrdersRepository();
+    await ordersRepo.init();
+
     final favRepo = FavoritesNotifier();
 
-    // Build our app and trigger a frame
+    // Build do app
     await tester.pumpWidget(MyApp(
       productsRepo: productsRepo,
       favRepo: favRepo,
+      ordersRepo: ordersRepo,
     ));
 
-    // Verifica se o título do App aparece na tela
-    expect(find.text('Catalog App'), findsOneWidget);
+    // Garante que o MaterialApp e Scaffold estão presentes
+    expect(find.byType(MaterialApp), findsOneWidget);
+    expect(find.byType(Scaffold), findsOneWidget);
 
-    // Você pode adicionar interações simples, por exemplo:
-    // Verifica se o carrinho está presente
+    // Verifica se o título do App aparece na tela
+    expect(find.text('Catálogo'), findsOneWidget);
+
+    // Verifica se o ícone do carrinho aparece
     expect(find.byIcon(Icons.shopping_cart), findsOneWidget);
 
-    // Interação de teste (opcional)
-    // await tester.tap(find.byIcon(Icons.add_shopping_cart).first);
-    // await tester.pump();
-    // expect(find.text('1'), findsNothing); // ajuste conforme lógica do app
+    // Teste de pull-to-refresh (RefreshIndicator)
+    final listFinder = find.byType(ListView);
+    expect(listFinder, findsOneWidget);
+
+    await tester.drag(listFinder, const Offset(0.0, 300.0));
+    await tester.pumpAndSettle();
+
+    // Testa botão de adicionar produto (FAB ou AppBar)
+    final addButton = find.byIcon(Icons.add_box_outlined);
+    expect(addButton, findsOneWidget);
+
+    // Testa botão de histórico de compras
+    final historyButton = find.byIcon(Icons.history);
+    expect(historyButton, findsOneWidget);
+
+    // Testa ícone de alternar tema
+    final themeButton = find.byIcon(Icons.brightness_6);
+    expect(themeButton, findsOneWidget);
   });
 }

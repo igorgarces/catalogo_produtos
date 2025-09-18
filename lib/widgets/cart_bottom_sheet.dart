@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../notifiers/cart_notifier.dart';
-import '../notifiers/purchase_notifier.dart';
 
 class CartBottomSheet extends StatelessWidget {
   const CartBottomSheet({super.key});

@@ -24,8 +24,9 @@ class _CatalogPageState extends State<CatalogPage> {
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ProductsNotifier>().fetchNextPage();
+      context.read<ProductsNotifier>().refresh();
     });
 
     _scrollController.addListener(() {
@@ -37,6 +38,21 @@ class _CatalogPageState extends State<CatalogPage> {
         notifier.fetchNextPage();
       }
     });
+  }
+
+  Future<void> _addOrEditProduct(BuildContext context, [Product? product]) async {
+    final result = await Navigator.push<Product?>(
+      context,
+      MaterialPageRoute(builder: (_) => ProductFormPage(product: product)),
+    );
+    if (result != null) {
+      final notifier = context.read<ProductsNotifier>();
+      if (product == null) {
+        notifier.addProduct(result);
+      } else {
+        notifier.editProduct(result);
+      }
+    }
   }
 
   void _openFilters(BuildContext context) {
@@ -74,22 +90,6 @@ class _CatalogPageState extends State<CatalogPage> {
     );
   }
 
-  Future<void> _addOrEditProduct(BuildContext context,
-      [Product? product]) async {
-    final result = await Navigator.push<Product?>(
-      context,
-      MaterialPageRoute(builder: (_) => ProductFormPage(product: product)),
-    );
-    if (result != null) {
-      final notifier = context.read<ProductsNotifier>();
-      if (product == null) {
-        notifier.addProduct(result);
-      } else {
-        notifier.editProduct(result);
-      }
-    }
-  }
-
   void _showCart(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -99,109 +99,107 @@ class _CatalogPageState extends State<CatalogPage> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) {
         return Consumer<CartNotifier>(
-          builder: (_, cart, __) {
-            return SizedBox(
-              height: MediaQuery.of(ctx).size.height * 0.7,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Carrinho',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
-                        IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(ctx)),
-                      ],
-                    ),
+          builder: (_, cart, __) => SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.7,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Carrinho',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
                   ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: cart.items.isEmpty
-                        ? const Center(child: Text('Seu carrinho está vazio.'))
-                        : ListView.builder(
-                            itemCount: cart.items.length,
-                            itemBuilder: (_, i) {
-                              final item = cart.items[i];
-                              return ListTile(
-                                leading: item.product.imageBytes != null
-                                    ? CircleAvatar(
-                                        backgroundImage: MemoryImage(
-                                            item.product.imageBytes!),
-                                      )
-                                    : CircleAvatar(
-                                        child: Text(item.product.name[0]
-                                            .toUpperCase()),
-                                      ),
-                                title: Text(item.product.name),
-                                subtitle: Text(
-                                    'R\$ ${item.product.price.toStringAsFixed(2)} x ${item.quantity}'),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.remove_circle,
-                                      color: Colors.red),
-                                  onPressed: () =>
-                                      cart.removeProduct(item.product),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(16)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Total:',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16)),
-                            Text(
-                                'R\$ ${cart.totalPrice.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16)),
-                          ],
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: cart.items.isEmpty
+                      ? const Center(child: Text('Seu carrinho está vazio.'))
+                      : ListView.builder(
+                          itemCount: cart.items.length,
+                          itemBuilder: (_, i) {
+                            final item = cart.items[i];
+                            return ListTile(
+                              leading: item.product.imageBytes != null
+                                  ? CircleAvatar(
+                                      backgroundImage:
+                                          MemoryImage(item.product.imageBytes!),
+                                    )
+                                  : CircleAvatar(
+                                      child: Text(item.product.name[0]
+                                          .toUpperCase()),
+                                    ),
+                              title: Text(item.product.name),
+                              subtitle: Text(
+                                  'R\$ ${item.product.price.toStringAsFixed(2)} x ${item.quantity}'),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.remove_circle,
+                                    color: Colors.red),
+                                onPressed: () =>
+                                    cart.removeProduct(item.product),
+                              ),
+                            );
+                          },
                         ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: cart.items.isEmpty
-                                ? null
-                                : () async {
-                                    await cart.finalizePurchase();
-                                    Navigator.pop(ctx); // fecha modal
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                            content: Text(
-                                                'Compra finalizada e salva!')));
-                                    // vai pro histórico
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) =>
-                                              const PurchaseHistoryPage()),
-                                    );
-                                  },
-                            child: const Text('Finalizar compra'),
-                          ),
-                        )
-                      ],
-                    ),
-                  )
-                ],
-              ),
-            );
-          },
+                ),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Total:',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text('R\$ ${cart.totalPrice.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: cart.items.isEmpty
+                              ? null
+                              : () async {
+                                  await cart.finalizePurchase();
+                                  Navigator.pop(ctx); // fecha modal
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text('Compra finalizada e salva!')),
+                                  );
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            const PurchaseHistoryPage()),
+                                  );
+                                },
+                          child: const Text('Finalizar compra'),
+                        ),
+                      )
+                    ],
+                  ),
+                )
+              ],
+            ),
+          ),
         );
       },
     );
@@ -214,7 +212,6 @@ class _CatalogPageState extends State<CatalogPage> {
     final products = notifier.filteredProducts;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Catálogo'),
         actions: [
@@ -237,12 +234,12 @@ class _CatalogPageState extends State<CatalogPage> {
               icon: const Icon(Icons.brightness_6),
               onPressed: widget.onToggleTheme),
           IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PurchaseHistoryPage()),
-            ),
-          ),
+              icon: const Icon(Icons.history),
+              onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const PurchaseHistoryPage()),
+                  )),
         ],
       ),
       body: RefreshIndicator(

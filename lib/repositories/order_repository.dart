@@ -1,43 +1,50 @@
-import 'dart:convert';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import '../notifiers/cart_notifier.dart';
+import '../models/purchase.dart';
+import 'file_storage.dart';
 
-class OrderRepository {
-  Future<String> get _localPath async {
-    final dir = await getApplicationDocumentsDirectory();
-    return dir.path;
+class OrdersRepository {
+  final List<Purchase> _orders = [];
+  final String _fileName = 'orders.json';
+
+  OrdersRepository();
+
+  Future<void> init() async {
+    await FileStorage.ensureLocalFile(_fileName, _fileName);
+    await loadOrders();
   }
 
-  Future<File> get _localFile async {
-    final path = await _localPath;
-    return File('$path/orders.json');
-  }
-
-  Future<List<Map<String, dynamic>>> _readOrders() async {
-    try {
-      final file = await _localFile;
-      if (!file.existsSync()) return [];
-      final content = await file.readAsString();
-      return List<Map<String, dynamic>>.from(jsonDecode(content));
-    } catch (_) {
-      return [];
+  Future<void> loadOrders() async {
+    final data = await FileStorage.readJson(_fileName);
+    _orders.clear();
+    if (data != null) {
+      _orders.addAll(
+        (data as List)
+            .map((x) => Purchase.fromJson(Map<String, dynamic>.from(x))),
+      );
     }
   }
 
-  Future<void> saveOrder(CartNotifier cart) async {
-    final orders = await _readOrders();
-    final order = {
-      "id": "order_${DateTime.now().millisecondsSinceEpoch}",
-      "items": cart.items
-          .map((i) => {"productId": i.product.id, "quantity": i.quantity})
-          .toList(),
-      "total": cart.totalPrice,
-      "date": DateTime.now().toIso8601String()
-    };
-    orders.add(order);
+  Future<void> saveOrders() async {
+    final data = _orders.map((o) => o.toJson()).toList();
+    await FileStorage.saveJson(_fileName, data);
+  }
 
-    final file = await _localFile;
-    await file.writeAsString(jsonEncode(orders));
+  List<Purchase> allOrders() => List.unmodifiable(_orders);
+
+  Future<void> addOrder(Purchase order) async {
+    _orders.insert(0, order);
+    await saveOrders();
+  }
+
+  Purchase? findById(String id) {
+    try {
+      return _orders.firstWhere((o) => o.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> deleteOrder(String id) async {
+    _orders.removeWhere((o) => o.id == id);
+    await saveOrders();
   }
 }
