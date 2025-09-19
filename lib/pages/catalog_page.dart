@@ -26,7 +26,7 @@ class _CatalogPageState extends State<CatalogPage> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ProductsNotifier>().refresh();
+      context.read<ProductsNotifier>().refresh(forceReload: true);
     });
 
     _scrollController.addListener(() {
@@ -243,7 +243,7 @@ class _CatalogPageState extends State<CatalogPage> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async => notifier.refresh(),
+        onRefresh: () async => notifier.refresh(forceReload: true),
         child: ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.symmetric(vertical: 12),

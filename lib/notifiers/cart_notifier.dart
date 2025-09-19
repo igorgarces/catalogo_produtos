@@ -1,7 +1,7 @@
-import 'package:catalogo_produtos/repositories/order_repository.dart';
 import 'package:flutter/material.dart';
 import '../models/product.dart';
 import '../models/purchase.dart';
+import '../repositories/order_repository.dart';
 
 class CartItem {
   final Product product;
@@ -60,7 +60,6 @@ class CartNotifier extends ChangeNotifier {
     await ordersRepo.addOrder(purchase);
 
     clearCart(); // 🔹 garante que carrinho esvazia depois da compra
-    notifyListeners();
   }
 
   void removeFromCart(Product product) {}

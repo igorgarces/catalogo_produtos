@@ -7,12 +7,18 @@ class OrdersRepository {
 
   OrdersRepository();
 
+  /// Inicializa o repositório garantindo que o arquivo existe
   Future<void> init() async {
     await FileStorage.ensureLocalFile(_fileName, _fileName);
-    await loadOrders();
+    await fetchOrders(forceReload: true);
   }
 
-  Future<void> loadOrders() async {
+  /// Busca pedidos já existentes
+  Future<List<Purchase>> fetchOrders({bool forceReload = false}) async {
+    if (_orders.isNotEmpty && !forceReload) {
+      return List.unmodifiable(_orders);
+    }
+
     final data = await FileStorage.readJson(_fileName);
     _orders.clear();
 
@@ -22,19 +28,28 @@ class OrdersRepository {
             .map((x) => Purchase.fromJson(Map<String, dynamic>.from(x))),
       );
     }
+
+    return List.unmodifiable(_orders);
   }
 
-  Future<void> saveOrders() async {
+  /// Retorna lista atual em memória
+  List<Purchase> allOrders() => List.unmodifiable(_orders);
+
+  /// Adiciona pedido novo
+  Future<void> addOrder(Purchase order) async {
+    _orders.insert(0, order);
+    await _save();
+  }
+
+  /// Exclui pedido pelo id
+  Future<void> deleteOrder(String id) async {
+    _orders.removeWhere((o) => o.id == id);
+    await _save();
+  }
+
+  /// Salva todos os pedidos no arquivo
+  Future<void> _save() async {
     final data = _orders.map((o) => o.toJson()).toList();
     await FileStorage.saveJson(_fileName, data);
   }
-
-  Future<void> addOrder(Purchase order) async {
-    _orders.insert(0, order);
-    await saveOrders();
-  }
-
-  List<Purchase> allOrders() => List.unmodifiable(_orders);
-
-  Future<void> deleteOrder(String id) async {}
 }

@@ -68,12 +68,12 @@ class ProductsNotifier extends ChangeNotifier {
     }
   }
 
-  // 🔹 Agora o refresh recarrega direto do arquivo
-  Future<void> refresh() async {
+  // 🔹 Agora o refresh SEMPRE recarrega do arquivo
+  Future<void> refresh({bool forceReload = true}) async {
     _isLoading = true;
     notifyListeners();
 
-    await repo.loadProducts(forceReload: true);
+    await repo.loadProducts(forceReload: forceReload);
     _products
       ..clear()
       ..addAll(repo.allProducts());
