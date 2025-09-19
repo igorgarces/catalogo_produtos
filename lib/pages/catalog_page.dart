@@ -26,6 +26,7 @@ class _CatalogPageState extends State<CatalogPage> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 🔹 Força refresh no init para carregar JSON atualizado
       context.read<ProductsNotifier>().refresh(forceReload: true);
     });
 
@@ -178,13 +179,16 @@ class _CatalogPageState extends State<CatalogPage> {
                               ? null
                               : () async {
                                   await cart.finalizePurchase();
+                                  // ignore: use_build_context_synchronously
                                   Navigator.pop(ctx); // fecha modal
+                                  // ignore: use_build_context_synchronously
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                         content:
                                             Text('Compra finalizada e salva!')),
                                   );
                                   Navigator.push(
+                                    // ignore: use_build_context_synchronously
                                     context,
                                     MaterialPageRoute(
                                         builder: (_) =>

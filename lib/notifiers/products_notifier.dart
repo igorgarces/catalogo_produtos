@@ -35,16 +35,17 @@ class ProductsNotifier extends ChangeNotifier {
   bool get filterFeatured => _filterFeatured;
   String get searchQuery => _searchQuery;
 
-  // Inicializa carregando produtos do repositório
+  /// Inicializa carregando produtos do repositório
   Future<void> init() async {
     await repo.init();
     _products
       ..clear()
       ..addAll(repo.allProducts());
+    _hasMore = true;
     notifyListeners();
   }
 
-  // Paginação
+  /// Paginação
   Future<void> fetchNextPage({int limit = 10}) async {
     if (_isLoading || !_hasMore) return;
     _isLoading = true;
@@ -68,12 +69,12 @@ class ProductsNotifier extends ChangeNotifier {
     }
   }
 
-  // 🔹 Agora o refresh SEMPRE recarrega do arquivo
-  Future<void> refresh({bool forceReload = true}) async {
+  /// 🔹 Recarrega produtos do JSON
+  Future<void> refresh({bool forceReload = false}) async {
     _isLoading = true;
     notifyListeners();
 
-    await repo.loadProducts(forceReload: forceReload);
+    await repo.loadProducts(forceReload: true); // força ler do arquivo
     _products
       ..clear()
       ..addAll(repo.allProducts());
@@ -83,7 +84,7 @@ class ProductsNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Manipulação de produtos
+  /// Manipulação de produtos
   void addProduct(Product p) {
     repo.addProduct(p);
     _products.insert(0, p);
@@ -107,7 +108,7 @@ class ProductsNotifier extends ChangeNotifier {
 
   Product? findById(String id) => repo.findById(id);
 
-  // Filtros
+  /// Filtros
   void setFilters({
     String? category,
     RangeValues? price,
@@ -135,7 +136,7 @@ class ProductsNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Produtos filtrados
+  /// Produtos filtrados
   List<Product> get filteredProducts {
     final q = _searchQuery.trim().toLowerCase();
     return _products.where((p) {
