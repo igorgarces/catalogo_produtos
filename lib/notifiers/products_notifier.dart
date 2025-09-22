@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/product.dart';
 import '../repositories/products_repository.dart';
-import 'favorites_notifier.dart';
+import 'favorites_notifier.dart'; // ✅ Importar do arquivo correto
 
 class ProductsNotifier extends ChangeNotifier {
   final ProductsRepository repo;
-  final FavoritesNotifier favRepo;
 
-  ProductsNotifier({required this.repo, required this.favRepo}) {
+  ProductsNotifier({required this.repo}) {
     init();
   }
 
@@ -74,7 +73,7 @@ class ProductsNotifier extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    await repo.loadProducts(forceReload: true); // força ler do arquivo
+    await repo.loadProducts(forceReload: true);
     _products
       ..clear()
       ..addAll(repo.allProducts());
@@ -136,8 +135,8 @@ class ProductsNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Produtos filtrados
-  List<Product> get filteredProducts {
+  /// Produtos filtrados - RECEBE FavoritesNotifier COMO PARÂMETRO
+  List<Product> getFilteredProducts(FavoritesNotifier favRepo) {
     final q = _searchQuery.trim().toLowerCase();
     return _products.where((p) {
       final matchesCategory =

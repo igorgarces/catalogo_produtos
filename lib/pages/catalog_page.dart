@@ -4,6 +4,8 @@ import '../models/product.dart';
 import '../notifiers/cart_notifier.dart';
 import '../notifiers/favorites_notifier.dart';
 import '../notifiers/products_notifier.dart';
+import '../repositories/products_repository.dart';
+import '../repositories/order_repository.dart';
 import '../widgets/product_tile.dart';
 import '../widgets/filters_bottom_sheet.dart';
 import '../pages/product_form_page.dart';
@@ -187,13 +189,6 @@ class _CatalogPageState extends State<CatalogPage> {
                                         content:
                                             Text('Compra finalizada e salva!')),
                                   );
-                                  Navigator.push(
-                                    // ignore: use_build_context_synchronously
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            const PurchaseHistoryPage()),
-                                  );
                                 },
                           child: const Text('Finalizar compra'),
                         ),
@@ -209,11 +204,72 @@ class _CatalogPageState extends State<CatalogPage> {
     );
   }
 
+  void _debugProducts(BuildContext context) {
+    final notifier = context.read<ProductsNotifier>();
+    final repo = context.read<ProductsRepository>();
+    
+    print('=== DEBUG PRODUTOS ===');
+    print('Produtos no Notifier: ${notifier.products.length}');
+    print('Produtos no Repository: ${repo.allProducts().length}');
+    print('Filtros ativos:');
+    print(' - Categoria: ${notifier.selectedCategory}');
+    print(' - Busca: "${notifier.searchQuery}"');
+    print(' - Preço: R\$${notifier.priceRange.start} - R\$${notifier.priceRange.end}');
+    print(' - Em estoque: ${notifier.filterInStock}');
+    print(' - Favoritos: ${notifier.filterFavorites}');
+    print(' - Destaques: ${notifier.filterFeatured}');
+    
+    if (notifier.products.isNotEmpty) {
+      print('Lista de produtos no Notifier:');
+      for (final product in notifier.products) {
+        print(' - ${product.name} (ID: ${product.id}) - R\$${product.price}');
+      }
+    } else {
+      print('⚠️ Nenhum produto no Notifier!');
+    }
+
+    if (repo.allProducts().isNotEmpty) {
+      print('Lista de produtos no Repository:');
+      for (final product in repo.allProducts().take(3)) {
+        print(' - ${product.name} (ID: ${product.id}) - R\$${product.price}');
+      }
+      if (repo.allProducts().length > 3) {
+        print(' - ... e mais ${repo.allProducts().length - 3} produtos');
+      }
+    } else {
+      print('⚠️ Nenhum produto no Repository!');
+    }
+
+    // 🔹 Tenta recarregar os produtos
+    print('🔄 Tentando recarregar produtos...');
+    repo.loadProducts(forceReload: true).then((_) {
+      print('✅ Recarregamento completo');
+      print('📊 Produtos após recarregar: ${repo.allProducts().length}');
+      
+      // Força o notifier a atualizar
+      if (mounted) {
+        context.read<ProductsNotifier>().refresh(forceReload: true);
+        print('🔄 Notifier atualizado');
+      }
+    });
+
+    print('=====================');
+  }
+
+  void _debugOrders(BuildContext context) {
+    final ordersRepo = context.read<OrdersRepository>();
+    print('=== DEBUG PEDIDOS ===');
+    ordersRepo.debugStorage();
+  }
+
   @override
   Widget build(BuildContext context) {
     final notifier = context.watch<ProductsNotifier>();
     final fav = context.watch<FavoritesNotifier>();
-    final products = notifier.filteredProducts;
+    final cart = context.watch<CartNotifier>();
+    
+    // 🔹 CORREÇÃO: Usar a lista de produtos diretamente do notifier
+    final products = notifier.products;
 
     return Scaffold(
       appBar: AppBar(
@@ -244,36 +300,156 @@ class _CatalogPageState extends State<CatalogPage> {
                     MaterialPageRoute(
                         builder: (_) => const PurchaseHistoryPage()),
                   )),
+          // 🔹 BOTÃO DEBUG PRODUTOS
+          IconButton(
+            icon: const Icon(Icons.inventory_2),
+            onPressed: () => _debugProducts(context),
+            tooltip: 'Debug Produtos',
+          ),
+          // 🔹 BOTÃO DEBUG PEDIDOS
+          IconButton(
+            icon: const Icon(Icons.receipt_long),
+            onPressed: () => _debugOrders(context),
+            tooltip: 'Debug Pedidos',
+          ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async => notifier.refresh(forceReload: true),
-        child: ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          itemCount: products.length + (notifier.isLoading ? 1 : 0),
-          itemBuilder: (_, i) {
-            if (i >= products.length) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            final p = products[i];
-            return ProductTile(
-              product: p,
-              isFavorite: fav.isFavorite(p),
-              onAddToCart: () => context.read<CartNotifier>().addProduct(p),
-              onEditProduct: () => _addOrEditProduct(context, p),
-              onDeleteProduct: () => notifier.deleteProduct(p),
-              onToggleFavorite: () => fav.toggleFavorite(p),
-              onOpenDetails: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => ProductDetailPage(product: p))),
-            );
-          },
-        ),
+        onRefresh: () async {
+          print('🔄 Pull-to-refresh acionado');
+          await context.read<ProductsNotifier>().refresh(forceReload: true);
+          print('✅ Pull-to-refresh completo');
+        },
+        child: notifier.isLoading && products.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : products.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inventory_2, size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Nenhum produto encontrado', 
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Puxe para baixo para recarregar',
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            _debugProducts(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Debug executado - verifique o console')),
+                            );
+                          },
+                          child: const Text('Debug Carregamento'),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    children: [
+                      // 🔹 Indicador de filtros ativos
+                      if (notifier.selectedCategory != null ||
+                          notifier.searchQuery.isNotEmpty ||
+                          notifier.filterInStock ||
+                          notifier.filterFavorites ||
+                          notifier.filterFeatured)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          color: Colors.blue[50],
+                          child: Row(
+                            children: [
+                              const Icon(Icons.filter_alt, size: 16, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Filtros ativos: ${products.length} produto(s)',
+                                  style: const TextStyle(fontSize: 12, color: Colors.blue),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => notifier.clearFilters(),
+                                child: const Text(
+                                  'Limpar',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      // 🔹 Lista de produtos
+                      Expanded(
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          itemCount: products.length + (notifier.isLoading ? 1 : 0),
+                          itemBuilder: (_, i) {
+                            if (i >= products.length) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
+                            final p = products[i];
+                            return ProductTile(
+                              product: p,
+                              isFavorite: fav.isFavorite(p),
+                              onAddToCart: () {
+                                cart.addProduct(p);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${p.name} adicionado ao carrinho!'),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                              onEditProduct: () => _addOrEditProduct(context, p),
+                              onDeleteProduct: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Excluir produto'),
+                                    content: Text('Deseja excluir "${p.name}"?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: const Text('Cancelar'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          notifier.deleteProduct(p);
+                                          Navigator.pop(ctx);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('"${p.name}" excluído!')),
+                                          );
+                                        },
+                                        child: const Text('Excluir', 
+                                            style: TextStyle(color: Colors.red)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                              onToggleFavorite: () => fav.toggleFavorite(p),
+                              onOpenDetails: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => ProductDetailPage(product: p))),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
       ),
       floatingActionButton: Stack(
         alignment: Alignment.bottomRight,
@@ -331,6 +507,9 @@ class _ProductSearchDelegate extends SearchDelegate<String> {
       itemBuilder: (_, i) => ListTile(
         title: Text(results[i].name),
         subtitle: Text('R\$ ${results[i].price.toStringAsFixed(2)}'),
+        onTap: () {
+          close(context, results[i].name);
+        },
       ),
     );
   }
@@ -344,7 +523,11 @@ class _ProductSearchDelegate extends SearchDelegate<String> {
       itemCount: results.length,
       itemBuilder: (_, i) => ListTile(
           title: Text(results[i].name),
-          onTap: () => query = results[i].name),
+          subtitle: Text('R\$ ${results[i].price.toStringAsFixed(2)}'),
+          onTap: () {
+            query = results[i].name;
+            showResults(context);
+          }),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import '../models/product.dart';
 import '../models/purchase.dart';
 import '../repositories/order_repository.dart';
@@ -11,6 +12,8 @@ class CartItem {
 }
 
 class CartNotifier extends ChangeNotifier {
+  static final Logger _logger = Logger('CartNotifier');
+  
   final OrdersRepository ordersRepo;
   final List<CartItem> _items = [];
 
@@ -42,14 +45,28 @@ class CartNotifier extends ChangeNotifier {
     }
   }
 
+  void removeFromCart(Product product) {
+    _items.removeWhere((item) => item.product.id == product.id);
+    notifyListeners();
+  }
+
   void clearCart() {
     _items.clear();
     notifyListeners();
   }
 
   Future<void> finalizePurchase() async {
-    if (_items.isEmpty) return;
+    if (_items.isEmpty) {
+      _logger.warning('Carrinho vazio - não é possível finalizar compra');
+      return;
+    }
 
+    _logger.info('Finalizando compra com ${_items.length} itens');
+    _logger.info('Itens no carrinho:');
+    for (final item in _items) {
+      _logger.info(' - ${item.product.name} x ${item.quantity} = R\$${(item.product.price * item.quantity).toStringAsFixed(2)}');
+    }
+    
     final purchase = Purchase(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       items: _items.map((i) => i.product).toList(),
@@ -57,10 +74,16 @@ class CartNotifier extends ChangeNotifier {
       date: DateTime.now(),
     );
 
-    await ordersRepo.addOrder(purchase);
-
-    clearCart(); // 🔹 garante que carrinho esvazia depois da compra
+    _logger.info('Pedido criado: ${purchase.id}');
+    _logger.info('Total do pedido: R\$${purchase.total.toStringAsFixed(2)}');
+    
+    try {
+      await ordersRepo.addOrder(purchase);
+      _logger.info('Compra finalizada com sucesso!');
+      clearCart();
+    } catch (e) {
+      _logger.severe('Erro ao finalizar compra: $e');
+      rethrow;
+    }
   }
-
-  void removeFromCart(Product product) {}
 }

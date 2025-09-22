@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/product.dart';
 
-class FavoritesNotifier extends ChangeNotifier {
+class FavoritesNotifier extends ChangeNotifier { // ✅ Agora herda de ChangeNotifier
   final List<String> _favoriteIds = [];
 
   List<String> get favoriteIds => List.unmodifiable(_favoriteIds);
@@ -14,6 +14,6 @@ class FavoritesNotifier extends ChangeNotifier {
     } else {
       _favoriteIds.add(product.id);
     }
-    notifyListeners();
+    notifyListeners(); // ✅ Agora pode chamar notifyListeners
   }
 }

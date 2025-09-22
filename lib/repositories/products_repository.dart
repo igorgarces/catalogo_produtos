@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
 import '../models/product.dart';
 import 'file_storage.dart';
 
@@ -9,58 +11,122 @@ class ProductsRepository {
   ProductsRepository();
 
   Future<void> init() async {
+    print('🔄 Inicializando ProductsRepository...');
     await FileStorage.ensureLocalFile(_fileName, _fileName);
     await loadProducts(forceReload: true);
   }
 
   Future<void> loadProducts({bool forceReload = false}) async {
-    if (!forceReload && _products.isNotEmpty) return; // 🔹 evita duplicação
+    print('📦 Carregando produtos... forceReload: $forceReload');
+    
+    try {
+      if (forceReload) {
+        print('🔄 Forçando recarregamento...');
+        final data = await FileStorage.readJson(_fileName);
+        _products.clear();
 
-    final data = await FileStorage.readJson(_fileName);
-    _products.clear();
+        if (data != null && data is List && data.isNotEmpty) {
+          print('✅ JSON local encontrado com ${data.length} produtos');
+          _products.addAll(
+            data.map((x) => Product.fromJson(Map<String, dynamic>.from(x))),
+          );
+          print('✅ ${_products.length} produtos carregados na memória');
+        } else {
+          print('❌ JSON local vazio, carregando do assets...');
+          await _loadFromAssets();
+        }
+        return;
+      }
 
-    if (data != null) {
+      if (_products.isNotEmpty) {
+        print('ℹ️  Produtos já carregados: ${_products.length}');
+        return;
+      }
+
+      final data = await FileStorage.readJson(_fileName);
+      _products.clear();
+
+      if (data != null && data is List && data.isNotEmpty) {
+        print('✅ Carregando do arquivo local...');
+        _products.addAll(
+          data.map((x) => Product.fromJson(Map<String, dynamic>.from(x))),
+        );
+      } else {
+        print('❌ Arquivo local vazio, carregando do assets...');
+        await _loadFromAssets();
+      }
+    } catch (e) {
+      print('❌ Erro em loadProducts: $e');
+      await _loadFromAssets();
+    }
+  }
+
+  Future<void> _loadFromAssets() async {
+    try {
+      print('📁 Tentando carregar do assets/products.json...');
+      final data = await rootBundle.loadString('assets/products.json');
+      final jsonList = jsonDecode(data) as List;
+      
+      _products.clear();
       _products.addAll(
-        (data as List)
-            .map((x) => Product.fromJson(Map<String, dynamic>.from(x))),
+        jsonList.map((x) => Product.fromJson(Map<String, dynamic>.from(x))),
       );
-    } else {
-      // fallback inicial
-      _products.addAll([
-        Product(
-          id: '1',
-          name: 'Camisa branca',
-          description: 'Camisa branca de algodão',
-          price: 49.9,
-          category: 'Roupas',
-          stock: 10,
-          isFeatured: true,
-        ),
-        Product(
-          id: '2',
-          name: 'As Crônicas de Galliot',
-          description: 'Meu livro autoral de fantasia',
-          price: 79.9,
-          category: 'Livros',
-          stock: 5,
-        ),
-        Product(
-          id: '3',
-          name: 'Fone de Ouvido',
-          description: 'Fone Bluetooth sem fio',
-          price: 199.9,
-          category: 'Eletrônicos',
-          stock: 3,
-          isFeatured: true,
-        ),
-      ]);
+      
+      print('✅ ${_products.length} produtos carregados do assets');
+      
+      // Salva no storage local para próxima vez
+      await saveProducts();
+      print('💾 Produtos salvos no storage local');
+      
+    } catch (e) {
+      print('❌ Erro ao carregar do assets: $e');
+      // Fallback hardcoded
+      _products.clear();
+      _products.addAll(_getDefaultProducts());
+      print('🔄 Usando produtos padrão: ${_products.length}');
       await saveProducts();
     }
   }
 
+  List<Product> _getDefaultProducts() {
+    return [
+      Product(
+        id: '1',
+        name: 'Camisa branca',
+        description: 'Camisa branca de algodão',
+        price: 49.9,
+        category: 'Roupas',
+        stock: 10,
+        isFeatured: true,
+      ),
+      Product(
+        id: '2',
+        name: 'As Crônicas de Galliot',
+        description: 'Meu livro autoral de fantasia',
+        price: 79.9,
+        category: 'Livros',
+        stock: 5,
+      ),
+      Product(
+        id: '3',
+        name: 'Fone de Ouvido',
+        description: 'Fone Bluetooth sem fio',
+        price: 199.9,
+        category: 'Eletrônicos',
+        stock: 3,
+        isFeatured: true,
+      ),
+    ];
+  }
+
   Future<void> saveProducts() async {
-    final data = _products.map((p) => p.toJson()).toList();
-    await FileStorage.saveJson(_fileName, data);
+    try {
+      final data = _products.map((p) => p.toJson()).toList();
+      await FileStorage.saveJson(_fileName, data);
+      print('💾 ${_products.length} produtos salvos em $_fileName');
+    } catch (e) {
+      print('❌ Erro ao salvar produtos: $e');
+    }
   }
 
   Future<List<Product>> fetchProducts({int start = 0, int limit = 10}) async {
@@ -96,5 +162,8 @@ class ProductsRepository {
     }
   }
 
-  List<Product> allProducts() => List.unmodifiable(_products);
+  List<Product> allProducts() {
+    print('📋 Solicitando lista de produtos: ${_products.length} itens');
+    return List.unmodifiable(_products);
+  }
 }

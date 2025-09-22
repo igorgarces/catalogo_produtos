@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:logging/logging.dart';
 import 'repositories/products_repository.dart';
 import 'repositories/order_repository.dart';
 import 'notifiers/products_notifier.dart';
@@ -9,6 +10,12 @@ import 'pages/catalog_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 🔹 Inicializar logging
+  Logger.root.level = Level.ALL;
+  Logger.root.onRecord.listen((record) {
+    print('${record.level.name}: ${record.time}: ${record.message}');
+  });
 
   final productsRepo = ProductsRepository();
   await productsRepo.init();
@@ -21,14 +28,14 @@ void main() async {
       providers: [
         Provider<ProductsRepository>.value(value: productsRepo),
         Provider<OrdersRepository>.value(value: ordersRepo),
-        ChangeNotifierProvider(
-          create: (_) => ProductsNotifier(repo: productsRepo, favRepo: FavoritesNotifier()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => CartNotifier(ordersRepo: ordersRepo),
-        ),
-        ChangeNotifierProvider(
+        ChangeNotifierProvider<FavoritesNotifier>(
           create: (_) => FavoritesNotifier(),
+        ),
+        ChangeNotifierProvider<ProductsNotifier>(
+          create: (context) => ProductsNotifier(repo: productsRepo),
+        ),
+        ChangeNotifierProvider<CartNotifier>(
+          create: (context) => CartNotifier(ordersRepo: ordersRepo),
         ),
       ],
       child: const MyApp(),
