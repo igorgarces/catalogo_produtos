@@ -22,14 +22,14 @@ class CatalogPage extends StatefulWidget {
 
 class _CatalogPageState extends State<CatalogPage> {
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey<RefreshIndicatorState>();
 
   @override
   void initState() {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // 🔹 Força refresh no init para carregar JSON atualizado
-      context.read<ProductsNotifier>().refresh(forceReload: true);
+      _refreshData();
     });
 
     _scrollController.addListener(() {
@@ -41,6 +41,39 @@ class _CatalogPageState extends State<CatalogPage> {
         notifier.fetchNextPage();
       }
     });
+  }
+
+  Future<void> _refreshData() async {
+    print('🔄 Iniciando pull-to-refresh...');
+    try {
+      await context.read<ProductsNotifier>().refresh(forceReload: true);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Catálogo atualizado!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      
+      print('✅ Pull-to-refresh concluído com sucesso');
+    } catch (e) {
+      print('❌ Erro no pull-to-refresh: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao atualizar: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showRefreshIndicator() {
+    _refreshIndicatorKey.currentState?.show();
   }
 
   Future<void> _addOrEditProduct(BuildContext context, [Product? product]) async {
@@ -78,7 +111,7 @@ class _CatalogPageState extends State<CatalogPage> {
             notifier.setFilters(
               category: cat,
               price: range,
-              inStock: inStock,
+              inStock: inStock, // ✅ CORREÇÃO: parâmetro correto
               onlyFav: fav,
               featured: featured,
             );
@@ -181,9 +214,7 @@ class _CatalogPageState extends State<CatalogPage> {
                               ? null
                               : () async {
                                   await cart.finalizePurchase();
-                                  // ignore: use_build_context_synchronously
-                                  Navigator.pop(ctx); // fecha modal
-                                  // ignore: use_build_context_synchronously
+                                  Navigator.pop(ctx);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                         content:
@@ -211,48 +242,9 @@ class _CatalogPageState extends State<CatalogPage> {
     print('=== DEBUG PRODUTOS ===');
     print('Produtos no Notifier: ${notifier.products.length}');
     print('Produtos no Repository: ${repo.allProducts().length}');
-    print('Filtros ativos:');
-    print(' - Categoria: ${notifier.selectedCategory}');
-    print(' - Busca: "${notifier.searchQuery}"');
-    print(' - Preço: R\$${notifier.priceRange.start} - R\$${notifier.priceRange.end}');
-    print(' - Em estoque: ${notifier.filterInStock}');
-    print(' - Favoritos: ${notifier.filterFavorites}');
-    print(' - Destaques: ${notifier.filterFeatured}');
     
-    if (notifier.products.isNotEmpty) {
-      print('Lista de produtos no Notifier:');
-      for (final product in notifier.products) {
-        print(' - ${product.name} (ID: ${product.id}) - R\$${product.price}');
-      }
-    } else {
-      print('⚠️ Nenhum produto no Notifier!');
-    }
-
-    if (repo.allProducts().isNotEmpty) {
-      print('Lista de produtos no Repository:');
-      for (final product in repo.allProducts().take(3)) {
-        print(' - ${product.name} (ID: ${product.id}) - R\$${product.price}');
-      }
-      if (repo.allProducts().length > 3) {
-        print(' - ... e mais ${repo.allProducts().length - 3} produtos');
-      }
-    } else {
-      print('⚠️ Nenhum produto no Repository!');
-    }
-
-    // 🔹 Tenta recarregar os produtos
-    print('🔄 Tentando recarregar produtos...');
-    repo.loadProducts(forceReload: true).then((_) {
-      print('✅ Recarregamento completo');
-      print('📊 Produtos após recarregar: ${repo.allProducts().length}');
-      
-      // Força o notifier a atualizar
-      if (mounted) {
-        context.read<ProductsNotifier>().refresh(forceReload: true);
-        print('🔄 Notifier atualizado');
-      }
-    });
-
+    _showRefreshIndicator();
+    
     print('=====================');
   }
 
@@ -262,19 +254,57 @@ class _CatalogPageState extends State<CatalogPage> {
     ordersRepo.debugStorage();
   }
 
+  void _testFilters(BuildContext context) {
+    final notifier = context.read<ProductsNotifier>();
+    final fav = context.read<FavoritesNotifier>();
+    
+    print('=== TESTE DE FILTROS ===');
+    print('Total de produtos: ${notifier.products.length}');
+    
+    // Teste cada filtro individualmente
+    notifier.setFilters(category: 'Roupas');
+    final roupas = notifier.getFilteredProducts(fav);
+    print('Filtro "Roupas": ${roupas.length} produtos');
+    
+    notifier.setFilters(category: null, inStock: true); // ✅ CORREÇÃO: parâmetro correto
+    final emEstoque = notifier.getFilteredProducts(fav);
+    print('Filtro "Em estoque": ${emEstoque.length} produtos');
+    
+    notifier.clearFilters();
+    print('Filtros limpos');
+    print('=====================');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Teste de filtros executado - verifique o console')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final notifier = context.watch<ProductsNotifier>();
     final fav = context.watch<FavoritesNotifier>();
     final cart = context.watch<CartNotifier>();
     
-    // 🔹 CORREÇÃO: Usar a lista de produtos diretamente do notifier
-    final products = notifier.products;
+    // 🔹 CORREÇÃO: Usar produtos FILTRADOS
+    final products = notifier.getFilteredProducts(fav);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Catálogo'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              _showRefreshIndicator();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Atualizando catálogo...'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
+            tooltip: 'Atualizar catálogo',
+          ),
           IconButton(
               icon: const Icon(Icons.add_box_outlined),
               onPressed: () => _addOrEditProduct(context)),
@@ -300,26 +330,26 @@ class _CatalogPageState extends State<CatalogPage> {
                     MaterialPageRoute(
                         builder: (_) => const PurchaseHistoryPage()),
                   )),
-          // 🔹 BOTÃO DEBUG PRODUTOS
           IconButton(
             icon: const Icon(Icons.inventory_2),
             onPressed: () => _debugProducts(context),
             tooltip: 'Debug Produtos',
           ),
-          // 🔹 BOTÃO DEBUG PEDIDOS
           IconButton(
-            icon: const Icon(Icons.receipt_long),
-            onPressed: () => _debugOrders(context),
-            tooltip: 'Debug Pedidos',
+            icon: const Icon(Icons.troubleshoot),
+            onPressed: () => _testFilters(context),
+            tooltip: 'Testar Filtros',
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async {
-          print('🔄 Pull-to-refresh acionado');
-          await context.read<ProductsNotifier>().refresh(forceReload: true);
-          print('✅ Pull-to-refresh completo');
-        },
+        key: _refreshIndicatorKey,
+        onRefresh: _refreshData,
+        color: Theme.of(context).colorScheme.primary,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        displacement: 40.0,
+        strokeWidth: 2.0,
+        triggerMode: RefreshIndicatorTriggerMode.onEdge,
         child: notifier.isLoading && products.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : products.isEmpty
@@ -335,25 +365,45 @@ class _CatalogPageState extends State<CatalogPage> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Puxe para baixo para recarregar',
+                          'Verifique os filtros ou puxe para recarregar',
                           style: TextStyle(color: Colors.grey, fontSize: 14),
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                          onPressed: () {
-                            _debugProducts(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Debug executado - verifique o console')),
-                            );
-                          },
-                          child: const Text('Debug Carregamento'),
+                          onPressed: _showRefreshIndicator,
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.refresh),
+                              SizedBox(width: 8),
+                              Text('Recarregar Agora'),
+                            ],
+                          ),
                         ),
+                        const SizedBox(height: 8),
+                        if (notifier.selectedCategory != null ||
+                            notifier.searchQuery.isNotEmpty ||
+                            notifier.filterInStock ||
+                            notifier.filterFavorites ||
+                            notifier.filterFeatured)
+                          ElevatedButton(
+                            onPressed: () {
+                              notifier.clearFilters();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Filtros limpos!')),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange[50],
+                              foregroundColor: Colors.orange,
+                            ),
+                            child: const Text('Limpar Filtros'),
+                          ),
                       ],
                     ),
                   )
                 : Column(
                     children: [
-                      // 🔹 Indicador de filtros ativos
                       if (notifier.selectedCategory != null ||
                           notifier.searchQuery.isNotEmpty ||
                           notifier.filterInStock ||
@@ -367,13 +417,48 @@ class _CatalogPageState extends State<CatalogPage> {
                               const Icon(Icons.filter_alt, size: 16, color: Colors.blue),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: Text(
-                                  'Filtros ativos: ${products.length} produto(s)',
-                                  style: const TextStyle(fontSize: 12, color: Colors.blue),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Filtros ativos: ${products.length} produto(s) encontrado(s)',
+                                      style: const TextStyle(fontSize: 12, color: Colors.blue),
+                                    ),
+                                    if (notifier.selectedCategory != null)
+                                      Text(
+                                        'Categoria: ${notifier.selectedCategory}',
+                                        style: const TextStyle(fontSize: 10, color: Colors.blue),
+                                      ),
+                                    if (notifier.searchQuery.isNotEmpty)
+                                      Text(
+                                        'Busca: "${notifier.searchQuery}"',
+                                        style: const TextStyle(fontSize: 10, color: Colors.blue),
+                                      ),
+                                    if (notifier.filterInStock)
+                                      const Text(
+                                        'Apenas em estoque',
+                                        style: TextStyle(fontSize: 10, color: Colors.blue),
+                                      ),
+                                    if (notifier.filterFavorites)
+                                      const Text(
+                                        'Apenas favoritos',
+                                        style: TextStyle(fontSize: 10, color: Colors.blue),
+                                      ),
+                                    if (notifier.filterFeatured)
+                                      const Text(
+                                        'Apenas destaques',
+                                        style: TextStyle(fontSize: 10, color: Colors.blue),
+                                      ),
+                                  ],
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () => notifier.clearFilters(),
+                                onTap: () {
+                                  notifier.clearFilters();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Filtros limpos!')),
+                                  );
+                                },
                                 child: const Text(
                                   'Limpar',
                                   style: TextStyle(
@@ -386,7 +471,6 @@ class _CatalogPageState extends State<CatalogPage> {
                             ],
                           ),
                         ),
-                      // 🔹 Lista de produtos
                       Expanded(
                         child: ListView.builder(
                           controller: _scrollController,
@@ -484,7 +568,6 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 }
 
-/// 🔹 SearchDelegate simples
 class _ProductSearchDelegate extends SearchDelegate<String> {
   final List<Product> products;
   _ProductSearchDelegate(this.products);

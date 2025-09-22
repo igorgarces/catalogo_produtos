@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/product.dart';
 import '../repositories/products_repository.dart';
-import 'favorites_notifier.dart'; // ✅ Importar do arquivo correto
+import 'favorites_notifier.dart';
 
 class ProductsNotifier extends ChangeNotifier {
   final ProductsRepository repo;
-
-  ProductsNotifier({required this.repo}) {
-    init();
-  }
-
   final List<Product> _products = [];
   bool _isLoading = false;
   bool _hasMore = true;
@@ -21,6 +16,10 @@ class ProductsNotifier extends ChangeNotifier {
   bool _filterFavorites = false;
   bool _filterFeatured = false;
   String _searchQuery = '';
+
+  ProductsNotifier({required this.repo}) {
+    init();
+  }
 
   // Getters
   List<Product> get products => _products;
@@ -34,17 +33,31 @@ class ProductsNotifier extends ChangeNotifier {
   bool get filterFeatured => _filterFeatured;
   String get searchQuery => _searchQuery;
 
-  /// Inicializa carregando produtos do repositório
   Future<void> init() async {
-    await repo.init();
-    _products
-      ..clear()
-      ..addAll(repo.allProducts());
-    _hasMore = true;
-    notifyListeners();
+    print('🔄 ProductsNotifier init()');
+    await refresh(forceReload: true);
   }
 
-  /// Paginação
+  Future<void> refresh({bool forceReload = false}) async {
+    print('🔄 ProductsNotifier refresh(forceReload: $forceReload)');
+    
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await repo.loadProducts(forceReload: forceReload);
+      _products.clear();
+      _products.addAll(repo.allProducts());
+      _hasMore = true;
+      print('✅ ProductsNotifier - ${_products.length} produtos carregados');
+    } catch (e) {
+      print('❌ Erro no ProductsNotifier.refresh: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> fetchNextPage({int limit = 10}) async {
     if (_isLoading || !_hasMore) return;
     _isLoading = true;
@@ -68,22 +81,6 @@ class ProductsNotifier extends ChangeNotifier {
     }
   }
 
-  /// 🔹 Recarrega produtos do JSON
-  Future<void> refresh({bool forceReload = false}) async {
-    _isLoading = true;
-    notifyListeners();
-
-    await repo.loadProducts(forceReload: true);
-    _products
-      ..clear()
-      ..addAll(repo.allProducts());
-
-    _hasMore = true;
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  /// Manipulação de produtos
   void addProduct(Product p) {
     repo.addProduct(p);
     _products.insert(0, p);
@@ -107,7 +104,6 @@ class ProductsNotifier extends ChangeNotifier {
 
   Product? findById(String id) => repo.findById(id);
 
-  /// Filtros
   void setFilters({
     String? category,
     RangeValues? price,
@@ -118,10 +114,19 @@ class ProductsNotifier extends ChangeNotifier {
   }) {
     _selectedCategory = category ?? _selectedCategory;
     _priceRange = price ?? _priceRange;
-    _filterInStock = inStock ?? _filterInStock;
+    _filterInStock = inStock ?? _filterInStock; // 🔹 CORREÇÃO: usar inStock
     _filterFavorites = onlyFav ?? _filterFavorites;
     _filterFeatured = featured ?? _filterFeatured;
     _searchQuery = query ?? _searchQuery;
+    
+    print('🎯 Filtros aplicados:');
+    print('   - Categoria: $_selectedCategory');
+    print('   - Preço: ${_priceRange.start} - ${_priceRange.end}');
+    print('   - Em estoque: $_filterInStock');
+    print('   - Favoritos: $_filterFavorites');
+    print('   - Destaques: $_filterFeatured');
+    print('   - Busca: "$_searchQuery"');
+    
     notifyListeners();
   }
 
@@ -132,13 +137,22 @@ class ProductsNotifier extends ChangeNotifier {
     _filterFavorites = false;
     _filterFeatured = false;
     _searchQuery = '';
+    print('🧹 Filtros limpos');
     notifyListeners();
   }
 
-  /// Produtos filtrados - RECEBE FavoritesNotifier COMO PARÂMETRO
   List<Product> getFilteredProducts(FavoritesNotifier favRepo) {
     final q = _searchQuery.trim().toLowerCase();
-    return _products.where((p) {
+    
+    print('🔍 Aplicando filtros:'); 
+    print('   - Categoria: $_selectedCategory');
+    print('   - Preço: R\$${_priceRange.start} - R\$${_priceRange.end}');
+    print('   - Busca: "$q"');
+    print('   - Em estoque: $_filterInStock');
+    print('   - Favoritos: $_filterFavorites');
+    print('   - Destaques: $_filterFeatured');
+    
+    final filtered = _products.where((p) {
       final matchesCategory =
           _selectedCategory == null || p.category == _selectedCategory;
       final matchesPrice =
@@ -149,12 +163,22 @@ class ProductsNotifier extends ChangeNotifier {
       final matchesStock = !_filterInStock || p.stock > 0;
       final matchesFav = !_filterFavorites || favRepo.isFavorite(p);
       final matchesFeatured = !_filterFeatured || p.isFeatured;
-      return matchesCategory &&
+      
+      final result = matchesCategory &&
           matchesPrice &&
           matchesSearch &&
           matchesStock &&
           matchesFav &&
           matchesFeatured;
+          
+      if (result) {
+        print('   ✅ ${p.name} - PASSOU nos filtros');
+      }
+      
+      return result;
     }).toList();
+    
+    print('🔍 Resultado: ${filtered.length} produtos encontrados');
+    return filtered;
   }
 }

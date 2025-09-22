@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../notifiers/products_notifier.dart';
+import '../notifiers/favorites_notifier.dart';
 
 class FiltersBottomSheet extends StatefulWidget {
   final List<String>? categories;
@@ -43,9 +46,28 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
     _filterFeatured = widget.filterFeatured;
   }
 
+  int _calculatePreviewCount(BuildContext context) {
+    final notifier = Provider.of<ProductsNotifier>(context, listen: false);
+    final favRepo = Provider.of<FavoritesNotifier>(context, listen: false);
+    
+    // Simulação dos filtros atuais
+    final tempProducts = notifier.products.where((p) {
+      final matchesCategory = _selectedCategory == null || p.category == _selectedCategory;
+      final matchesPrice = p.price >= _priceRange.start && p.price <= _priceRange.end;
+      final matchesStock = !_filterInStock || p.stock > 0;
+      final matchesFav = !_filterFavorites || favRepo.isFavorite(p);
+      final matchesFeatured = !_filterFeatured || p.isFeatured;
+      
+      return matchesCategory && matchesPrice && matchesStock && matchesFav && matchesFeatured;
+    }).toList();
+    
+    return tempProducts.length;
+  }
+
   @override
   Widget build(BuildContext context) {
     const maxPrice = 6000.0;
+    final previewCount = _calculatePreviewCount(context);
 
     return Padding(
       padding: MediaQuery.of(context).viewInsets,
@@ -60,13 +82,20 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
           children: [
             Text('Filtros', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
+            
+            // Categoria
             DropdownButtonFormField<String>(
               value: _selectedCategory,
-              items: widget.categories?.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Todas categorias')),
+                ...?widget.categories?.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              ],
               onChanged: (v) => setState(() => _selectedCategory = v),
               decoration: const InputDecoration(labelText: 'Categoria'),
             ),
             const SizedBox(height: 12),
+            
+            // Preço
             Text('Preço: R\$ ${_priceRange.start.toInt()} - R\$ ${_priceRange.end.toInt()}'),
             RangeSlider(
               values: _priceRange,
@@ -77,6 +106,8 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
               onChanged: (v) => setState(() => _priceRange = v),
             ),
             const SizedBox(height: 12),
+            
+            // Checkboxes
             CheckboxListTile(
               title: const Text('Apenas produtos em estoque'),
               value: _filterInStock,
@@ -92,7 +123,31 @@ class _FiltersBottomSheetState extends State<FiltersBottomSheet> {
               value: _filterFeatured,
               onChanged: (v) => setState(() => _filterFeatured = v ?? false),
             ),
+            
+            // Preview
             const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info, size: 16, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$previewCount produtos correspondem aos filtros',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Botões
             Row(
               children: [
                 Expanded(
